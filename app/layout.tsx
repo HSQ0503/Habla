@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Habla",
-  description: "IB Spanish language learning platform",
+  title: "Habla - IB Spanish Language Learning Platform",
+  description: "Habla is an IB Spanish language learning platform that helps students prepare for the IB Spanish Language and Literature exam.",
 };
 
 export default function RootLayout({

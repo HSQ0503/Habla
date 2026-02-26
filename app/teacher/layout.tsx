@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -57,8 +58,8 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         }`}
       >
         <div className="flex items-center h-16 px-6 border-b border-gray-200">
-          <Link href="/teacher/dashboard" className="text-xl font-bold text-indigo-600 tracking-tight">
-            Habla
+          <Link href="/teacher/dashboard">
+            <Image src="/logo.png" alt="Habla" width={100} height={32} priority />
           </Link>
         </div>
 

@@ -14,7 +14,6 @@ type Props = {
   image: {
     url: string;
     theme: string;
-    culturalContext: string;
   };
   onComplete: () => void;
 };
@@ -144,98 +143,105 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
         </div>
       )}
 
-      {/* Chat area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-2xl mx-auto space-y-4">
-          {/* Image thumbnail */}
-          <div className="flex justify-center mb-4">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden w-48">
+      {/* Main content: image sidebar + chat */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Image panel */}
+        <div className="shrink-0 lg:w-64 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white">
+          <div className="p-3">
+            <div className="rounded-lg overflow-hidden border border-gray-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={image.url}
-                alt={image.culturalContext}
+                alt="Practice image"
                 className="w-full aspect-[4/3] object-cover"
               />
             </div>
           </div>
-
-          {initializing && (
-            <div className="flex justify-start">
-              <div className="bg-indigo-50 text-indigo-900 rounded-2xl rounded-bl-md px-4 py-3 max-w-[80%]">
-                <div className="flex items-center gap-2 text-sm">
-                  <svg className="animate-spin h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  El examinador está preparando su primera pregunta...
-                </div>
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                  msg.role === "student"
-                    ? "bg-gray-200 text-gray-900 rounded-br-md"
-                    : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                }`}
-              >
-                <p className="text-xs font-medium mb-1 opacity-60">
-                  {msg.role === "student" ? "You" : "Examiner"}
-                </p>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-              </div>
-            </div>
-          ))}
-
-          {sending && (
-            <div className="flex justify-start">
-              <div className="bg-indigo-50 text-indigo-900 rounded-2xl rounded-bl-md px-4 py-3 max-w-[80%]">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
         </div>
-      </div>
 
-      {/* Input */}
-      <div className="shrink-0 bg-white border-t border-gray-200 px-6 py-3">
-        <div className="max-w-2xl mx-auto flex items-end gap-3">
-          <div className="flex-1 relative">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your response in Spanish..."
-              rows={1}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
-              style={{ minHeight: "44px", maxHeight: "120px" }}
-            />
+        {/* Chat area */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {initializing && (
+                <div className="flex justify-start">
+                  <div className="bg-indigo-50 text-indigo-900 rounded-2xl rounded-bl-md px-4 py-3 max-w-[80%]">
+                    <div className="flex items-center gap-2 text-sm">
+                      <svg className="animate-spin h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      El examinador está preparando su primera pregunta...
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                      msg.role === "student"
+                        ? "bg-gray-200 text-gray-900 rounded-br-md"
+                        : "bg-indigo-50 text-indigo-900 rounded-bl-md"
+                    }`}
+                  >
+                    <p className="text-xs font-medium mb-1 opacity-60">
+                      {msg.role === "student" ? "You" : "Examiner"}
+                    </p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="bg-indigo-50 text-indigo-900 rounded-2xl rounded-bl-md px-4 py-3 max-w-[80%]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
           </div>
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || sending}
-            className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-            </svg>
-          </button>
+
+          {/* Input */}
+          <div className="shrink-0 bg-white border-t border-gray-200 px-6 py-3">
+            <div className="max-w-2xl mx-auto flex items-end gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your response in Spanish..."
+                  rows={1}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
+                  style={{ minHeight: "44px", maxHeight: "120px" }}
+                />
+              </div>
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || sending}
+                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                </svg>
+              </button>
+            </div>
+            <p className="max-w-2xl mx-auto text-xs text-gray-400 mt-1.5">
+              Press Enter to send, Shift+Enter for a new line
+            </p>
+          </div>
         </div>
-        <p className="max-w-2xl mx-auto text-xs text-gray-400 mt-1.5">
-          Press Enter to send, Shift+Enter for a new line
-        </p>
       </div>
     </div>
   );

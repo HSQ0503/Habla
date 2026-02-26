@@ -89,7 +89,20 @@ export default function SessionPage() {
 
   if (session.status === "COMPLETED") {
     router.push(`/student/history/${session.id}`);
-    return null;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center bg-white rounded-xl border border-gray-200 p-8 max-w-sm">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center">
+            <svg className="animate-spin h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analyzing your performance...</h2>
+          <p className="text-sm text-gray-500">Redirecting to your results...</p>
+        </div>
+      </div>
+    );
   }
 
   if (session.status === "TERMINATED") {

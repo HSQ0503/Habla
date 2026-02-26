@@ -1,61 +1,215 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { notFound } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { themeColors } from "@/lib/theme-colors";
+import FeedbackView from "@/components/practice/FeedbackView";
+import type { ChatMessage, FeedbackResult } from "@/lib/types";
 
-type ChatMessage = {
-  role: "student" | "examiner" | "presentation";
-  content: string;
+type SessionData = {
+  id: string;
+  status: string;
+  feedback: FeedbackResult | { error: boolean; message: string } | null;
+  scoreA: number | null;
+  transcript: ChatMessage[];
+  image: { url: string; theme: string };
+  createdAt: string;
 };
 
-export default async function SessionDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const session = await getServerSession(authOptions);
-  const { id } = await params;
+function hasFeedbackResult(
+  feedback: unknown
+): feedback is FeedbackResult {
+  return (
+    feedback !== null &&
+    typeof feedback === "object" &&
+    "ibGrades" in (feedback as Record<string, unknown>) &&
+    "quantitative" in (feedback as Record<string, unknown>)
+  );
+}
 
-  const practiceSession = await db.session.findUnique({
-    where: { id },
-    include: { image: true },
-  });
+function isFeedbackError(
+  feedback: unknown
+): feedback is { error: boolean; message: string } {
+  return (
+    feedback !== null &&
+    typeof feedback === "object" &&
+    "error" in (feedback as Record<string, unknown>) &&
+    (feedback as Record<string, unknown>).error === true
+  );
+}
 
-  if (!practiceSession || practiceSession.userId !== session!.user.id) {
-    notFound();
+export default function SessionDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    async function load() {
+      const res = await fetch(`/api/sessions/${id}`);
+      if (!res.ok) {
+        setError("Session not found");
+        setLoading(false);
+        return;
+      }
+      const data: SessionData = await res.json();
+      setSession(data);
+      setLoading(false);
+
+      // If completed but no feedback yet, poll for it
+      if (data.status === "COMPLETED" && !hasFeedbackResult(data.feedback)) {
+        setAnalyzing(true);
+        interval = setInterval(async () => {
+          const pollRes = await fetch(`/api/sessions/${id}`);
+          if (!pollRes.ok) return;
+          const updated: SessionData = await pollRes.json();
+          setSession(updated);
+          if (hasFeedbackResult(updated.feedback) || isFeedbackError(updated.feedback)) {
+            setAnalyzing(false);
+            if (interval) clearInterval(interval);
+          }
+        }, 3000);
+        timeout = setTimeout(() => {
+          if (interval) clearInterval(interval);
+          setAnalyzing(false);
+        }, 120000);
+      }
+    }
+
+    load();
+    return () => {
+      if (interval) clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [id]);
+
+  async function retryAnalysis() {
+    setAnalyzing(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/sessions/${id}/analyze`, { method: "POST" });
+      if (res.ok) {
+        const result = await res.json();
+        setSession((prev) =>
+          prev ? { ...prev, feedback: result, scoreA: result.ibGrades.criterionA.mark } : prev
+        );
+      } else {
+        setError("Analysis failed. Please try again.");
+      }
+    } catch {
+      setError("Analysis failed. Please try again.");
+    }
+    setAnalyzing(false);
   }
 
-  const theme = themeColors[practiceSession.image.theme] || {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center gap-3 text-gray-500">
+          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Loading session...
+        </div>
+      </div>
+    );
+  }
+
+  if (!session || error === "Session not found") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Session not found</p>
+          <Link href="/student/history" className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
+            Back to History
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Analyzing state
+  if (analyzing) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center bg-white rounded-xl border border-gray-200 p-8 max-w-sm">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center">
+            <svg className="animate-spin h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analyzing your performance...</h2>
+          <p className="text-sm text-gray-500">
+            Your transcript is being graded against the IB rubric. This usually takes 15-30 seconds.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state with retry
+  if (isFeedbackError(session.feedback)) {
+    return (
+      <div className="max-w-md mx-auto mt-12">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analysis Failed</h2>
+          <p className="text-sm text-gray-500 mb-4">{session.feedback.message}</p>
+          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          <button
+            onClick={retryAnalysis}
+            className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Retry Analysis
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full feedback view
+  if (hasFeedbackResult(session.feedback)) {
+    return (
+      <div>
+        <Link
+          href="/student/history"
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+          Back to History
+        </Link>
+
+        <FeedbackView
+          feedback={session.feedback}
+          transcript={session.transcript || []}
+          imageUrl={session.image.url}
+        />
+      </div>
+    );
+  }
+
+  // Fallback: no feedback yet (old sessions or incomplete)
+  const theme = themeColors[session.image.theme] || {
     bg: "bg-gray-100",
     text: "text-gray-700",
-    label: practiceSession.image.theme,
+    label: session.image.theme,
   };
-
-  const transcript = (practiceSession.transcript as ChatMessage[]) || [];
+  const transcript = session.transcript || [];
   const presentationText = transcript.find((m) => m.role === "presentation")?.content;
   const conversation = transcript.filter((m) => m.role !== "presentation");
-
-  const scores = [
-    { label: "Criterion A", value: practiceSession.scoreA },
-    { label: "Criterion B1", value: practiceSession.scoreB1 },
-    { label: "Criterion B2", value: practiceSession.scoreB2 },
-    { label: "Criterion C", value: practiceSession.scoreC },
-  ];
-  const hasScores = scores.some((s) => s.value !== null);
-
-  const statusLabel: Record<string, { text: string; color: string }> = {
-    PREPARING: { text: "Preparing", color: "text-yellow-600 bg-yellow-50" },
-    PRESENTING: { text: "Presenting", color: "text-blue-600 bg-blue-50" },
-    CONVERSING: { text: "Conversing", color: "text-purple-600 bg-purple-50" },
-    COMPLETED: { text: "Completed", color: "text-green-600 bg-green-50" },
-    TERMINATED: { text: "Terminated", color: "text-red-600 bg-red-50" },
-  };
-  const status = statusLabel[practiceSession.status] || {
-    text: practiceSession.status,
-    color: "text-gray-600 bg-gray-50",
-  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -74,11 +228,8 @@ export default async function SessionDetailPage({
         <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
           {theme.label}
         </span>
-        <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${status.color}`}>
-          {status.text}
-        </span>
         <span className="text-sm text-gray-400">
-          {practiceSession.createdAt.toLocaleDateString("en-US", {
+          {new Date(session.createdAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric",
@@ -87,31 +238,14 @@ export default async function SessionDetailPage({
       </div>
 
       {/* Image */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6 w-fit">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={practiceSession.image.url}
-          alt={practiceSession.image.culturalContext}
-          className="w-full max-h-64 object-contain bg-gray-100"
+          src={session.image.url}
+          alt="Practice image"
+          className="h-48 w-auto object-contain bg-gray-100"
         />
-        <div className="p-4">
-          <p className="text-sm text-gray-600">{practiceSession.image.culturalContext}</p>
-        </div>
       </div>
-
-      {/* Scores */}
-      {hasScores && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {scores.map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <p className="text-2xl font-semibold text-gray-900">
-                {s.value !== null ? s.value : "—"}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Presentation */}
       {presentationText && (
@@ -125,7 +259,7 @@ export default async function SessionDetailPage({
         </div>
       )}
 
-      {/* Conversation transcript */}
+      {/* Conversation */}
       {conversation.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
           <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
@@ -152,6 +286,19 @@ export default async function SessionDetailPage({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Analyze button for completed sessions without feedback */}
+      {session.status === "COMPLETED" && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center mb-6">
+          <p className="text-sm text-gray-500 mb-3">This session hasn&apos;t been analyzed yet.</p>
+          <button
+            onClick={retryAnalysis}
+            className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Analyze Now
+          </button>
         </div>
       )}
 

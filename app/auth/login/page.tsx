@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -47,9 +48,7 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-indigo-700 rounded-full translate-y-1/3 -translate-x-1/3 opacity-50" />
 
         <div className="relative z-10 px-16 max-w-lg">
-          <h1 className="text-5xl font-bold text-white tracking-tight">
-            Habla
-          </h1>
+          <Image src="/logo.png" alt="Habla" width={160} height={50} className="brightness-0 invert" priority />
           <p className="mt-4 text-lg text-indigo-100 leading-relaxed">
             Practice your IB Spanish speaking skills with structured
             conversations around culturally rich visual prompts.

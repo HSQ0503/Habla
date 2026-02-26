@@ -13,9 +13,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const theme = searchParams.get("theme");
 
+  const isTeacher = session.user.role === "TEACHER";
+
   const images = await db.image.findMany({
     where: theme ? { theme: theme as "IDENTITIES" | "EXPERIENCES" | "HUMAN_INGENUITY" | "SOCIAL_ORGANIZATION" | "SHARING_THE_PLANET" } : undefined,
     orderBy: { createdAt: "desc" },
+    ...(!isTeacher && {
+      select: { id: true, url: true, theme: true, createdAt: true },
+    }),
   });
 
   return NextResponse.json(images);
@@ -29,14 +34,20 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { url, theme, culturalContext, talkingPoints } = body;
+  const { url, theme, culturalContext, talkingPoints, aiAnalysis } = body;
 
   if (!url || !theme || !culturalContext || !talkingPoints?.length) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
   const image = await db.image.create({
-    data: { url, theme, culturalContext, talkingPoints },
+    data: {
+      url,
+      theme,
+      culturalContext,
+      talkingPoints,
+      ...(aiAnalysis && { aiAnalysis }),
+    },
   });
 
   return NextResponse.json(image, { status: 201 });

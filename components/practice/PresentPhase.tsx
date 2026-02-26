@@ -8,7 +8,6 @@ type Props = {
   image: {
     url: string;
     theme: string;
-    culturalContext: string;
   };
   onAdvance: (presentationText: string) => void;
 };
@@ -68,7 +67,7 @@ export default function PresentPhase({ image, onAdvance }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image.url}
-              alt={image.culturalContext}
+              alt="Practice image"
               className="w-full aspect-[4/3] object-cover bg-gray-100"
             />
           </div>

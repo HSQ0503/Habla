@@ -220,7 +220,7 @@ export default function PracticePage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={img.url}
-                        alt={img.culturalContext}
+                        alt="Practice image"
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
@@ -260,16 +260,13 @@ export default function PracticePage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedImage.url}
-              alt={selectedImage.culturalContext}
+              alt="Selected practice image"
               className="w-full max-h-80 object-contain bg-gray-100"
             />
             <div className="p-5">
               <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${themeColors[selectedImage.theme]?.bg || "bg-gray-100"} ${themeColors[selectedImage.theme]?.text || "text-gray-700"}`}>
                 {themeColors[selectedImage.theme]?.label || selectedImage.theme}
               </span>
-              <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-                {selectedImage.culturalContext}
-              </p>
             </div>
           </div>
 

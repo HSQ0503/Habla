@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { advanceSession } from "@/lib/session-state-machine";
+import { generateFeedback } from "@/lib/feedback-generator";
+import type { ChatMessage } from "@/lib/types";
 
 export async function GET(
   _request: Request,
@@ -41,6 +43,12 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Strip aiAnalysis from image data — students should never see it
+  if (session.user.role === "STUDENT") {
+    const { aiAnalysis: _, ...imageWithoutAnalysis } = practiceSession.image as Record<string, unknown>;
+    return NextResponse.json({ ...practiceSession, image: imageWithoutAnalysis });
+  }
+
   return NextResponse.json(practiceSession);
 }
 
@@ -67,12 +75,56 @@ export async function PATCH(
 
     // Save presentation text into transcript when moving to CONVERSING
     if (status === "CONVERSING" && presentationText) {
-      const transcript = (updated.transcript as { role: string; content: string }[]) || [];
-      transcript.unshift({ role: "presentation", content: presentationText });
+      const transcript =
+        (updated.transcript as ChatMessage[]) || [];
+      transcript.unshift({
+        role: "presentation" as const,
+        content: presentationText,
+        timestamp: new Date().toISOString(),
+        wordCount: presentationText.split(/\s+/).filter(Boolean).length,
+      });
       await db.session.update({
         where: { id },
-        data: { transcript: transcript as unknown as import("@prisma/client").Prisma.InputJsonValue },
+        data: { transcript },
       });
+    }
+
+    // Auto-trigger analysis when session completes
+    if (status === "COMPLETED") {
+      const fullSession = await db.session.findUnique({
+        where: { id },
+        include: { image: true },
+      });
+      if (fullSession) {
+        // Fire and forget — don't block the response
+        generateFeedback(fullSession)
+          .then(async (result) => {
+            await db.session.update({
+              where: { id },
+              data: {
+                scoreA: result.ibGrades.criterionA.mark,
+                scoreB1: result.ibGrades.criterionB1.mark,
+                scoreB2: result.ibGrades.criterionB2.mark,
+                scoreC: result.ibGrades.criterionC.mark,
+                feedback: JSON.parse(JSON.stringify(result)),
+                speakingPace: result.quantitative.pace.overallWPM,
+                vocabularyLevel: result.quantitative.vocabulary.estimatedLevel,
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("Auto-analysis failed:", err);
+            db.session.update({
+              where: { id },
+              data: {
+                feedback: {
+                  error: true,
+                  message: err instanceof Error ? err.message : "Analysis failed",
+                },
+              },
+            }).catch(console.error);
+          });
+      }
     }
 
     return NextResponse.json(updated);

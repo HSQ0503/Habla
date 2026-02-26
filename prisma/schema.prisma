@@ -67,6 +67,7 @@ model Image {
   theme           Theme
   culturalContext String
   talkingPoints   String[]
+  aiAnalysis      Json?
   createdAt       DateTime @default(now())
 
   sessions Session[]
