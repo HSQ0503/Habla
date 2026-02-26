@@ -147,7 +147,7 @@ export async function POST(
     practiceSession.image.theme,
     practiceSession.image.talkingPoints,
     presentationText,
-    practiceSession.image.aiAnalysis as AiAnalysis | null
+    (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null
   );
 
   const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
