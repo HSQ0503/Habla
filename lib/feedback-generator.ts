@@ -8,6 +8,10 @@ import { analyzeSpeakingPace } from "@/lib/analysis/speaking-pace";
 type SessionWithImage = {
   transcript: unknown;
   image: {
+    url: string;
+    theme: string;
+    culturalContext: string;
+    talkingPoints: string[];
     aiAnalysis?: unknown;
   };
   prepStartedAt: Date | null;
