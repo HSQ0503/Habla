@@ -8,7 +8,7 @@ import { analyzeSpeakingPace } from "@/lib/analysis/speaking-pace";
 type SessionWithImage = {
   transcript: unknown;
   image: {
-    aiAnalysis: unknown;
+    aiAnalysis?: unknown;
   };
   prepStartedAt: Date | null;
   presentStartedAt: Date | null;
