@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+enum Theme {
+  IDENTITIES
+  EXPERIENCES
+  HUMAN_INGENUITY
+  SOCIAL_ORGANIZATION
+  SHARING_THE_PLANET
+}
+
+enum SessionStatus {
+  PREPARING
+  PRESENTING
+  CONVERSING
+  COMPLETED
+  TERMINATED
+}
+
+enum ViolationType {
+  TAB_SWITCH
+  WINDOW_BLUR
+  COPY_PASTE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role
+  classId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class         Class?    @relation("ClassStudents", fields: [classId], references: [id])
+  taughtClasses Class[]   @relation("ClassTeacher")
+  sessions      Session[]
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  teacherId String
+  createdAt DateTime @default(now())
+
+  teacher  User   @relation("ClassTeacher", fields: [teacherId], references: [id])
+  students User[] @relation("ClassStudents")
+}
+
+model Image {
+  id              String   @id @default(cuid())
+  url             String
+  theme           Theme
+  culturalContext String
+  talkingPoints   String[]
+  createdAt       DateTime @default(now())
+
+  sessions Session[]
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  userId           String
+  imageId          String
+  status           SessionStatus
+  transcript       Json?
+  feedback         Json?
+  scoreA           Float?
+  scoreB1          Float?
+  scoreB2          Float?
+  scoreC           Float?
+  speakingPace     Float?
+  vocabularyLevel  String?
+  prepStartedAt    DateTime?
+  presentStartedAt DateTime?
+  converseStartedAt DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  image      Image       @relation(fields: [imageId], references: [id])
+  violations Violation[]
+}
+
+model Violation {
+  id        String        @id @default(cuid())
+  sessionId String
+  type      ViolationType
+  timestamp DateTime      @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id])
+}
