@@ -12,18 +12,58 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const theme = searchParams.get("theme");
+  const scope = searchParams.get("scope");
+  const teacherId = searchParams.get("teacherId");
+  const creatorId = searchParams.get("creatorId");
 
   const isTeacher = session.user.role === "TEACHER";
 
-  const images = await db.image.findMany({
-    where: theme ? { theme: theme as "IDENTITIES" | "EXPERIENCES" | "HUMAN_INGENUITY" | "SOCIAL_ORGANIZATION" | "SHARING_THE_PLANET" } : undefined,
-    orderBy: { createdAt: "desc" },
-    ...(!isTeacher && {
-      select: { id: true, url: true, theme: true, createdAt: true },
-    }),
-  });
+  // Teacher viewing their own images (library page)
+  if (creatorId && isTeacher && creatorId === session.user.id) {
+    const images = await db.image.findMany({
+      where: {
+        creatorId,
+        ...(theme && { theme: theme as never }),
+        ...(scope && { scope: scope as never }),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(images);
+  }
 
-  return NextResponse.json(images);
+  // Class library: teacher's class images
+  if (scope === "CLASS" && teacherId) {
+    const images = await db.image.findMany({
+      where: {
+        creatorId: teacherId,
+        scope: "CLASS",
+        ...(theme && { theme: theme as never }),
+      },
+      orderBy: { createdAt: "desc" },
+      ...(!isTeacher && {
+        select: { id: true, url: true, theme: true, createdAt: true },
+      }),
+    });
+    return NextResponse.json(images);
+  }
+
+  // Global library: approved global images only
+  if (scope === "GLOBAL" || !scope) {
+    const images = await db.image.findMany({
+      where: {
+        scope: "GLOBAL",
+        approvalStatus: "APPROVED",
+        ...(theme && { theme: theme as never }),
+      },
+      orderBy: { createdAt: "desc" },
+      ...(!isTeacher && {
+        select: { id: true, url: true, theme: true, createdAt: true },
+      }),
+    });
+    return NextResponse.json(images);
+  }
+
+  return NextResponse.json([]);
 }
 
 export async function POST(request: Request) {
@@ -34,11 +74,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { url, theme, culturalContext, talkingPoints, aiAnalysis } = body;
+  const { url, theme, culturalContext, talkingPoints, aiAnalysis, scope } = body;
 
   if (!url || !theme || !culturalContext || !talkingPoints?.length) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const imageScope = scope === "GLOBAL" ? "GLOBAL" : "CLASS";
 
   const image = await db.image.create({
     data: {
@@ -46,6 +88,10 @@ export async function POST(request: Request) {
       theme,
       culturalContext,
       talkingPoints,
+      creatorId: session.user.id,
+      scope: imageScope,
+      // Class images are auto-approved; global submissions need review
+      approvalStatus: imageScope === "CLASS" ? "APPROVED" : "PENDING",
       ...(aiAnalysis && { aiAnalysis }),
     },
   });

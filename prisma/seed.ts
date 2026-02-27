@@ -6,15 +6,16 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash("password123", 12);
 
-  // Create teacher
+  // Create teacher (admin)
   const teacher = await prisma.user.upsert({
     where: { email: "teacher@test.com" },
-    update: { password: hashedPassword },
+    update: { password: hashedPassword, isAdmin: true },
     create: {
       email: "teacher@test.com",
       password: hashedPassword,
       name: "Ms. Rodriguez",
       role: "TEACHER",
+      isAdmin: true,
     },
   });
 
@@ -54,7 +55,7 @@ async function main() {
     },
   });
 
-  // Create sample images
+  // Create sample images (global, pre-approved)
   await prisma.image.createMany({
     skipDuplicates: true,
     data: [
@@ -69,6 +70,11 @@ async function main() {
           "How does public art reflect cultural values?",
           "Compare this celebration with how your culture honors the deceased.",
         ],
+        scope: "GLOBAL",
+        approvalStatus: "APPROVED",
+        creatorId: teacher.id,
+        approvedBy: teacher.id,
+        approvedAt: new Date(),
       },
       {
         url: "https://placeholder.com/images/experiences-01.jpg",
@@ -80,6 +86,11 @@ async function main() {
           "What can we learn from market culture in different countries?",
           "Describe a memorable experience involving food or shopping in another culture.",
         ],
+        scope: "GLOBAL",
+        approvalStatus: "APPROVED",
+        creatorId: teacher.id,
+        approvedBy: teacher.id,
+        approvedAt: new Date(),
       },
       {
         url: "https://placeholder.com/images/human-ingenuity-01.jpg",
@@ -92,6 +103,11 @@ async function main() {
           "Why is preserving historical sites important for future generations?",
           "How does geography influence architectural innovation?",
         ],
+        scope: "GLOBAL",
+        approvalStatus: "APPROVED",
+        creatorId: teacher.id,
+        approvedBy: teacher.id,
+        approvedAt: new Date(),
       },
     ],
   });

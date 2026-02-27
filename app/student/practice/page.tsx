@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { themeColors } from "@/lib/theme-colors";
 
 type ImageRecord = {
@@ -11,6 +12,14 @@ type ImageRecord = {
   culturalContext: string;
   talkingPoints: string[];
 };
+
+type ClassInfo = {
+  id: string;
+  name: string;
+  teacher: { id: string; name: string };
+} | null;
+
+type Library = "global" | "class";
 
 const themes = [
   { value: "IDENTITIES", label: "Identidades", sublabel: "Identities" },
@@ -22,23 +31,46 @@ const themes = [
 
 export default function PracticePage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [step, setStep] = useState<"theme" | "image" | "confirm">("theme");
+  const [library, setLibrary] = useState<Library>("global");
+  const [classInfo, setClassInfo] = useState<ClassInfo>(null);
+  const [classLoaded, setClassLoaded] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [selectedImage, setSelectedImage] = useState<ImageRecord | null>(null);
   const [loadingImages, setLoadingImages] = useState(false);
   const [starting, setStarting] = useState(false);
 
+  // Fetch class info for library toggle
+  useEffect(() => {
+    if (!session?.user?.classId) return;
+    fetch("/api/classes/mine")
+      .then((res) => res.json())
+      .then((data) => setClassInfo(data.class))
+      .finally(() => setClassLoaded(true));
+  }, [session?.user?.classId]);
+
   useEffect(() => {
     if (step !== "image") return;
-    const query = selectedTheme ? `?theme=${selectedTheme}` : "";
+    const params = new URLSearchParams();
+    if (selectedTheme) params.set("theme", selectedTheme);
+
+    if (library === "class" && classInfo?.teacher.id) {
+      params.set("scope", "CLASS");
+      params.set("teacherId", classInfo.teacher.id);
+    } else {
+      params.set("scope", "GLOBAL");
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : "";
     fetch(`/api/images${query}`)
       .then((res) => res.json())
       .then((data) => {
         setImages(data);
         setLoadingImages(false);
       });
-  }, [step, selectedTheme]);
+  }, [step, selectedTheme, library, classInfo?.teacher.id]);
 
   function handleThemeSelect(theme: string | null) {
     setSelectedTheme(theme);
@@ -65,9 +97,11 @@ export default function PracticePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageId: selectedImage.id }),
     });
-    const session = await res.json();
-    router.push(`/student/practice/${session.id}`);
+    const sess = await res.json();
+    router.push(`/student/practice/${sess.id}`);
   }
+
+  const hasClass = !!classInfo;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -112,6 +146,37 @@ export default function PracticePage() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-1">Start IO Practice</h1>
           <p className="text-sm text-gray-500 mb-6">Choose a theme to explore.</p>
+
+          {/* Library toggle */}
+          {classLoaded && hasClass && (
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Image Library
+              </label>
+              <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                <button
+                  onClick={() => setLibrary("global")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    library === "global"
+                      ? "bg-indigo-600 text-white"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Global Library
+                </button>
+                <button
+                  onClick={() => setLibrary("class")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    library === "class"
+                      ? "bg-indigo-600 text-white"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {classInfo?.teacher.name}&apos;s Library
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {themes.map((t) => {
@@ -176,6 +241,7 @@ export default function PracticePage() {
             {selectedTheme
               ? `Showing images for ${themeColors[selectedTheme]?.label || selectedTheme}`
               : "Showing images from all themes"}
+            {library === "class" && classInfo ? ` from ${classInfo.teacher.name}'s library` : " from the global library"}
           </p>
 
           {loadingImages ? (
@@ -186,7 +252,7 @@ export default function PracticePage() {
             </div>
           ) : images.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <p className="text-sm text-gray-500">No images available for this theme yet.</p>
+              <p className="text-sm text-gray-500">No images available{library === "class" ? " in your teacher's library" : ""} for this theme yet.</p>
               <button
                 onClick={() => { setStep("theme"); setSelectedTheme(null); }}
                 className="mt-3 text-sm text-indigo-600 hover:text-indigo-500 font-medium"

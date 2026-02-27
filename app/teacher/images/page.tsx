@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { themeColors } from "@/lib/theme-colors";
 
@@ -10,32 +11,64 @@ type ImageRecord = {
   theme: string;
   culturalContext: string;
   talkingPoints: string[];
+  scope: string;
+  approvalStatus: string;
+  rejectionReason: string | null;
   createdAt: string;
 };
 
+const SCOPE_FILTERS = [
+  { value: "", label: "All Images" },
+  { value: "CLASS", label: "Class Images" },
+  { value: "GLOBAL", label: "Global Submissions" },
+];
+
+function scopeBadge(scope: string) {
+  if (scope === "GLOBAL") return { label: "Global", className: "bg-blue-50 text-blue-600" };
+  return { label: "Class", className: "bg-gray-100 text-gray-600" };
+}
+
+function statusBadge(status: string) {
+  if (status === "APPROVED") return { label: "Approved", className: "bg-green-50 text-green-600" };
+  if (status === "REJECTED") return { label: "Rejected", className: "bg-red-50 text-red-600" };
+  return { label: "Pending Review", className: "bg-yellow-50 text-yellow-600" };
+}
+
+function canEdit(image: ImageRecord) {
+  if (image.scope === "CLASS") return true;
+  if (image.scope === "GLOBAL" && image.approvalStatus === "PENDING") return true;
+  return false;
+}
+
 export default function ImagesPage() {
+  const { data: session } = useSession();
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingImage, setEditingImage] = useState<ImageRecord | null>(null);
   const [viewingImage, setViewingImage] = useState<ImageRecord | null>(null);
-
-  const fetchImages = useCallback(async () => {
-    const res = await fetch("/api/images");
-    const data = await res.json();
-    setImages(data);
-    setLoading(false);
-  }, []);
+  const [scopeFilter, setScopeFilter] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    fetchImages();
-  }, [fetchImages]);
+    if (!session?.user?.id) return;
+    const params = new URLSearchParams({ creatorId: session.user.id });
+    if (scopeFilter) params.set("scope", scopeFilter);
+    fetch(`/api/images?${params}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setImages(data);
+        setLoading(false);
+      });
+  }, [session?.user?.id, scopeFilter, refreshKey]);
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this image? This cannot be undone.")) return;
     setDeleting(id);
-    await fetch(`/api/images/${id}`, { method: "DELETE" });
-    setImages((prev) => prev.filter((img) => img.id !== id));
+    const res = await fetch(`/api/images/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setImages((prev) => prev.filter((img) => img.id !== id));
+    }
     setDeleting(null);
   }
 
@@ -59,6 +92,19 @@ export default function ImagesPage() {
         </Link>
       </div>
 
+      {/* Filter bar */}
+      <div className="mb-4">
+        <select
+          value={scopeFilter}
+          onChange={(e) => { setScopeFilter(e.target.value); setLoading(true); }}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {SCOPE_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+      </div>
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
@@ -77,7 +123,9 @@ export default function ImagesPage() {
           <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
           </svg>
-          <p className="text-gray-500 text-sm mb-4">No images yet. Upload your first image to get started.</p>
+          <p className="text-gray-500 text-sm mb-4">
+            {scopeFilter ? "No images match this filter." : "No images yet. Upload your first image to get started."}
+          </p>
           <Link
             href="/teacher/images/upload"
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
@@ -89,6 +137,10 @@ export default function ImagesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {images.map((image) => {
             const theme = themeColors[image.theme] || { bg: "bg-gray-100", text: "text-gray-700", label: image.theme };
+            const scope = scopeBadge(image.scope);
+            const status = image.scope === "GLOBAL" ? statusBadge(image.approvalStatus) : null;
+            const editable = canEdit(image);
+
             return (
               <div
                 key={image.id}
@@ -112,18 +164,32 @@ export default function ImagesPage() {
                 </button>
 
                 <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
                     <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
                       {theme.label}
                     </span>
-                    <span className="text-xs text-gray-400">
-                      {image.talkingPoints.length} talking point{image.talkingPoints.length !== 1 ? "s" : ""}
+                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${scope.className}`}>
+                      {scope.label}
                     </span>
+                    {status && (
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${status.className}`}>
+                        {status.label}
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-sm text-gray-600 line-clamp-2">
                     {image.culturalContext}
                   </p>
+
+                  {/* Rejection reason */}
+                  {image.approvalStatus === "REJECTED" && image.rejectionReason && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg">
+                      <p className="text-xs text-red-600">
+                        <span className="font-medium">Rejected:</span> {image.rejectionReason}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
                     <button
@@ -132,19 +198,23 @@ export default function ImagesPage() {
                     >
                       View
                     </button>
-                    <button
-                      onClick={() => setEditingImage(image)}
-                      className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(image.id)}
-                      disabled={deleting === image.id}
-                      className="text-xs text-gray-500 hover:text-red-600 font-medium transition-colors disabled:opacity-50"
-                    >
-                      {deleting === image.id ? "Deleting..." : "Delete"}
-                    </button>
+                    {editable && (
+                      <>
+                        <button
+                          onClick={() => setEditingImage(image)}
+                          className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(image.id)}
+                          disabled={deleting === image.id}
+                          className="text-xs text-gray-500 hover:text-red-600 font-medium transition-colors disabled:opacity-50"
+                        >
+                          {deleting === image.id ? "Deleting..." : "Delete"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -161,8 +231,9 @@ export default function ImagesPage() {
           onEdit={() => {
             const img = viewingImage;
             setViewingImage(null);
-            setEditingImage(img);
+            if (canEdit(img)) setEditingImage(img);
           }}
+          canEdit={canEdit(viewingImage)}
         />
       )}
 
@@ -173,7 +244,7 @@ export default function ImagesPage() {
           onClose={() => setEditingImage(null)}
           onSaved={() => {
             setEditingImage(null);
-            fetchImages();
+            setRefreshKey((k) => k + 1);
           }}
         />
       )}
@@ -185,18 +256,20 @@ function DetailModal({
   image,
   onClose,
   onEdit,
+  canEdit: editable,
 }: {
   image: ImageRecord;
   onClose: () => void;
   onEdit: () => void;
+  canEdit: boolean;
 }) {
   const theme = themeColors[image.theme] || { bg: "bg-gray-100", text: "text-gray-700", label: image.theme };
+  const scope = scopeBadge(image.scope);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Image */}
         <div className="relative bg-gray-100 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -214,11 +287,13 @@ function DetailModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto">
           <div className="flex items-center gap-2 mb-4">
             <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
               {theme.label}
+            </span>
+            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${scope.className}`}>
+              {scope.label}
             </span>
             <span className="text-xs text-gray-400">
               {new Date(image.createdAt).toLocaleDateString("en-US", {
@@ -253,7 +328,6 @@ function DetailModal({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button
             onClick={onClose}
@@ -261,12 +335,14 @@ function DetailModal({
           >
             Close
           </button>
-          <button
-            onClick={onEdit}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Edit Image
-          </button>
+          {editable && (
+            <button
+              onClick={onEdit}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Edit Image
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -320,7 +396,8 @@ function EditModal({
     });
 
     if (!res.ok) {
-      setError("Failed to save changes");
+      const data = await res.json();
+      setError(data.error || "Failed to save changes");
       setSaving(false);
       return;
     }

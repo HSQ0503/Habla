@@ -38,6 +38,8 @@ export default function UploadPage() {
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
   const [analysisExpanded, setAnalysisExpanded] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
+  const [scope, setScope] = useState<"CLASS" | "GLOBAL">("CLASS");
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleFile(f: File) {
     if (!f.type.startsWith("image/")) {
@@ -168,6 +170,7 @@ export default function UploadPage() {
           culturalContext,
           talkingPoints: filteredPoints,
           aiAnalysis: aiAnalysis || undefined,
+          scope,
         }),
       });
 
@@ -177,11 +180,51 @@ export default function UploadPage() {
         return;
       }
 
+      if (scope === "GLOBAL") {
+        setSubmitted(true);
+        return;
+      }
       router.push("/teacher/images");
     } catch {
       setError("Something went wrong");
       setUploading(false);
     }
+  }
+
+  if (submitted) {
+    return (
+      <div className="max-w-md mx-auto mt-12">
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
+            <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Submitted for Review</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Your image has been submitted to the global library and will be reviewed by an admin before becoming available to all students.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => {
+                setSubmitted(false);
+                clearFile();
+                setScope("CLASS");
+              }}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Upload Another
+            </button>
+            <button
+              onClick={() => router.push("/teacher/images")}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              View Library
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -365,6 +408,52 @@ export default function UploadPage() {
             </div>
           </div>
         )}
+
+        {/* Library scope */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Add to Library
+          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setScope("CLASS")}
+              className={`flex-1 px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                scope === "CLASS"
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <p className={`text-sm font-medium ${scope === "CLASS" ? "text-indigo-900" : "text-gray-900"}`}>
+                Class Library
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Available to your students immediately
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setScope("GLOBAL")}
+              className={`flex-1 px-4 py-3 rounded-lg border-2 text-left transition-colors ${
+                scope === "GLOBAL"
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <p className={`text-sm font-medium ${scope === "GLOBAL" ? "text-indigo-900" : "text-gray-900"}`}>
+                Global Library
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Reviewed before available to all students
+              </p>
+            </button>
+          </div>
+          {scope === "GLOBAL" && (
+            <p className="text-xs text-amber-600 mt-2">
+              Global submissions are reviewed before becoming available to all students.
+            </p>
+          )}
+        </div>
 
         {/* Theme */}
         <div>

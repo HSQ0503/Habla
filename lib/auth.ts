@@ -41,6 +41,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           classId: user.classId,
+          isAdmin: user.isAdmin,
         };
       },
     }),
@@ -53,19 +54,24 @@ export const authOptions: NextAuthOptions = {
           role: string;
           classId: string | null;
           name: string;
+          isAdmin: boolean;
         };
         token.id = u.id;
         token.role = u.role;
         token.classId = u.classId;
         token.name = u.name;
+        token.isAdmin = u.isAdmin;
       }
-      // Always refresh classId from DB so join-class takes effect without re-login
+      // Always refresh classId and isAdmin from DB
       if (token.id) {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
-          select: { classId: true },
+          select: { classId: true, isAdmin: true },
         });
-        if (dbUser) token.classId = dbUser.classId;
+        if (dbUser) {
+          token.classId = dbUser.classId;
+          token.isAdmin = dbUser.isAdmin;
+        }
       }
       return token;
     },
@@ -75,6 +81,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.classId = token.classId as string | null;
         session.user.name = token.name as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

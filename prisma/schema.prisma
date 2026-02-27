@@ -35,20 +35,33 @@ enum ViolationType {
   COPY_PASTE
 }
 
+enum ImageScope {
+  GLOBAL
+  CLASS
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
   role         Role
+  isAdmin      Boolean  @default(false)
   classId      String?
   teacherNotes String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  class         Class?    @relation("ClassStudents", fields: [classId], references: [id])
-  taughtClasses Class[]   @relation("ClassTeacher")
-  sessions      Session[]
+  class          Class?    @relation("ClassStudents", fields: [classId], references: [id])
+  taughtClasses  Class[]   @relation("ClassTeacher")
+  sessions       Session[]
+  createdImages  Image[]   @relation("ImageCreator")
 }
 
 model Class {
@@ -63,14 +76,21 @@ model Class {
 }
 
 model Image {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   url             String
   theme           Theme
   culturalContext String
   talkingPoints   String[]
   aiAnalysis      Json?
-  createdAt       DateTime @default(now())
+  creatorId       String?
+  scope           ImageScope     @default(GLOBAL)
+  approvalStatus  ApprovalStatus @default(APPROVED)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
 
+  creator  User?     @relation("ImageCreator", fields: [creatorId], references: [id])
   sessions Session[]
 }
 
