@@ -43,6 +43,16 @@ export class RealtimeClient {
     this.dc.onmessage = (event) => this.handleEvent(JSON.parse(event.data));
     this.dc.onopen = () => {
       console.log("[REALTIME] Data channel open");
+      // Enable input audio transcription via session.update
+      this.dc!.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          type: "realtime",
+          input_audio_transcription: {
+            model: "gpt-4o-mini-transcription",
+          },
+        },
+      }));
       this.callbacks.onConnectionStateChange("connected");
     };
     this.dc.onclose = () => {

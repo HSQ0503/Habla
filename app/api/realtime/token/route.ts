@@ -87,9 +87,6 @@ export async function POST(request: Request) {
           audio: {
             output: { voice: "alloy" },
           },
-          input_audio_transcription: {
-            model: "gpt-4o-mini-transcription",
-          },
           turn_detection: turnDetection,
         },
       }),
