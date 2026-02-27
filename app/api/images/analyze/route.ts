@@ -44,10 +44,16 @@ export async function POST(request: Request) {
   const { imageUrl } = body;
 
   if (!imageUrl) {
+    console.log("[IMAGE:ANALYZE] Missing imageUrl");
     return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
   }
 
+  console.log(`[IMAGE:ANALYZE] Analyzing image: ${imageUrl.substring(0, 80)}...`);
+
   try {
+    console.log("[IMAGE:ANALYZE] Calling GPT-4o vision");
+    const startTime = Date.now();
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -64,14 +70,18 @@ export async function POST(request: Request) {
     });
 
     const raw = completion.choices[0]?.message?.content || "";
+    const elapsed = Date.now() - startTime;
+    console.log(`[IMAGE:ANALYZE] GPT-4o responded in ${elapsed}ms (${completion.usage?.total_tokens || "?"} tokens)`);
 
     // Strip markdown fencing if present
     const cleaned = raw.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
     const analysis = JSON.parse(cleaned);
 
+    console.log(`[IMAGE:ANALYZE] Analysis complete: suggestedTheme=${analysis.suggestedTheme}, ${analysis.talkingPoints?.length || 0} talking points, ${analysis.deeperQuestions?.length || 0} questions`);
+
     return NextResponse.json({ analysis });
   } catch (err) {
-    console.error("Image analysis failed:", err);
+    console.error("[IMAGE:ANALYZE] Image analysis FAILED:", err);
     return NextResponse.json(
       { error: "Failed to analyze image. You can fill in the fields manually." },
       { status: 500 }

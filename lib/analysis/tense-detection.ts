@@ -161,7 +161,10 @@ const ALL_TENSES = ["present", "preterite", "imperfect", "future", "conditional"
 const MAX_EXAMPLES = 3;
 
 export function analyzeTenses(text: string): TenseAnalysis {
+  console.log(`[TENSE] Analyzing tenses in ${text.split(/\s+/).filter(Boolean).length} words`);
+
   if (!text.trim()) {
+    console.log("[TENSE] Empty text — returning empty analysis");
     return {
       tensesFound: [],
       totalTensesUsed: 0,
@@ -219,6 +222,11 @@ export function analyzeTenses(text: string): TenseAnalysis {
   const varietyScore = Math.min(10, Math.round((distinctCount / ALL_TENSES.length) * 10));
 
   const dominantTense = tensesFound.length > 0 ? tensesFound[0].tense : "none";
+
+  console.log(`[TENSE] Results: ${tensesFound.length} tenses found, variety=${varietyScore}/10, dominant=${dominantTense}, missing=[${missingTenses.join(", ")}]`);
+  for (const t of tensesFound) {
+    console.log(`[TENSE]   ${t.tense}: count=${t.count}, examples=[${t.examples.join(", ")}]`);
+  }
 
   return {
     tensesFound,

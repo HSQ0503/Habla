@@ -64,7 +64,10 @@ function scoreFromRange(value: number, low: number, high: number): number {
 }
 
 export function analyzeResponseDepth(studentMessages: string[]): DepthAnalysis {
+  console.log(`[DEPTH] Analyzing depth of ${studentMessages.length} student responses`);
+
   if (studentMessages.length === 0) {
+    console.log("[DEPTH] No student messages — returning empty analysis");
     const emptyFactors: FactorScore[] = [
       { name: "Word Count", score: 0, count: 0 },
       { name: "Sentences", score: 0, count: 0 },
@@ -130,6 +133,11 @@ export function analyzeResponseDepth(studentMessages: string[]): DepthAnalysis {
   const sorted = [...factorScores].sort((a, b) => b.score - a.score);
   const strongestFactor = sorted[0].name;
   const weakestFactor = sorted[sorted.length - 1].name;
+
+  console.log(`[DEPTH] Results: overall=${overallScore}/10, avgLength=${Math.round(avgWords)} words, strongest=${strongestFactor}, weakest=${weakestFactor}`);
+  for (const f of factorScores) {
+    console.log(`[DEPTH]   ${f.name}: score=${f.score}/10, count=${f.count}`);
+  }
 
   return {
     overallScore,

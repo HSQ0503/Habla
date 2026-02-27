@@ -1,25 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { themeColors } from "@/lib/theme-colors";
 import FeedbackView from "@/components/practice/FeedbackView";
+import TranscriptView from "@/components/practice/TranscriptView";
 import type { ChatMessage, FeedbackResult } from "@/lib/types";
+import SessionAnalytics from "@/components/session/SessionAnalytics";
 
 type SessionData = {
   id: string;
   status: string;
   feedback: FeedbackResult | { error: boolean; message: string } | null;
   scoreA: number | null;
+  scoreB1: number | null;
+  scoreB2: number | null;
+  scoreC: number | null;
   transcript: ChatMessage[];
   image: { url: string; theme: string };
   createdAt: string;
+  prepStartedAt: string | null;
+  completedAt: string | null;
 };
 
-function hasFeedbackResult(
-  feedback: unknown
-): feedback is FeedbackResult {
+function hasFeedbackResult(feedback: unknown): feedback is FeedbackResult {
   return (
     feedback !== null &&
     typeof feedback === "object" &&
@@ -39,8 +44,37 @@ function isFeedbackError(
   );
 }
 
+function scoreColor(total: number) {
+  if (total >= 20) return { bg: "bg-green-50", border: "border-green-200", text: "text-green-700" };
+  if (total >= 12) return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700" };
+  return { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" };
+}
+
+function formatDuration(start: string | null, end: string | null) {
+  if (!start || !end) return null;
+  const diffMs = new Date(end).getTime() - new Date(start).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "<1 min";
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+const TABS = [
+  { key: "feedback", label: "Feedback" },
+  { key: "transcript", label: "Transcript" },
+  { key: "analytics", label: "Analytics" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "feedback"
+  );
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -61,7 +95,6 @@ export default function SessionDetailPage() {
       setSession(data);
       setLoading(false);
 
-      // If completed but no feedback yet, poll for it
       if (data.status === "COMPLETED" && !hasFeedbackResult(data.feedback)) {
         setAnalyzing(true);
         interval = setInterval(async () => {
@@ -87,6 +120,13 @@ export default function SessionDetailPage() {
       if (timeout) clearTimeout(timeout);
     };
   }, [id]);
+
+  function switchTab(tab: TabKey) {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
 
   async function retryAnalysis() {
     setAnalyzing(true);
@@ -134,7 +174,6 @@ export default function SessionDetailPage() {
     );
   }
 
-  // Analyzing state
   if (analyzing) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -154,7 +193,6 @@ export default function SessionDetailPage() {
     );
   }
 
-  // Error state with retry
   if (isFeedbackError(session.feedback)) {
     return (
       <div className="max-w-md mx-auto mt-12">
@@ -178,41 +216,19 @@ export default function SessionDetailPage() {
     );
   }
 
-  // Full feedback view
-  if (hasFeedbackResult(session.feedback)) {
-    return (
-      <div>
-        <Link
-          href="/student/history"
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-          Back to History
-        </Link>
-
-        <FeedbackView
-          feedback={session.feedback}
-          transcript={session.transcript || []}
-          imageUrl={session.image.url}
-        />
-      </div>
-    );
-  }
-
-  // Fallback: no feedback yet (old sessions or incomplete)
   const theme = themeColors[session.image.theme] || {
     bg: "bg-gray-100",
     text: "text-gray-700",
     label: session.image.theme,
   };
-  const transcript = session.transcript || [];
-  const presentationText = transcript.find((m) => m.role === "presentation")?.content;
-  const conversation = transcript.filter((m) => m.role !== "presentation");
+  const hasFeedback = hasFeedbackResult(session.feedback);
+  const total = hasFeedback ? (session.feedback as FeedbackResult).ibGrades.totalMark : null;
+  const duration = formatDuration(session.prepStartedAt, session.completedAt);
+  const sc = total !== null ? scoreColor(total) : null;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
+      {/* Back link */}
       <Link
         href="/student/history"
         className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
@@ -223,98 +239,160 @@ export default function SessionDetailPage() {
         Back to History
       </Link>
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
-          {theme.label}
-        </span>
-        <span className="text-sm text-gray-400">
-          {new Date(session.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </span>
-      </div>
-
-      {/* Image */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6 w-fit">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={session.image.url}
-          alt="Practice image"
-          className="h-48 w-auto object-contain bg-gray-100"
-        />
-      </div>
-
-      {/* Presentation */}
-      {presentationText && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-            Your Presentation
-          </h2>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {presentationText}
-          </p>
-        </div>
-      )}
-
-      {/* Conversation */}
-      {conversation.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
-            Conversation Transcript
-          </h2>
-          <div className="space-y-4">
-            {conversation.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                    msg.role === "student"
-                      ? "bg-gray-100 text-gray-900 rounded-br-md"
-                      : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                  }`}
-                >
-                  <p className="text-xs font-medium mb-1 opacity-60">
-                    {msg.role === "student" ? "You" : "Examiner"}
-                  </p>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
+      {/* Top section: image + theme + date + score */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex items-start gap-4 flex-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={session.image.url}
+            alt="Session image"
+            className="w-20 h-20 rounded-lg object-cover bg-gray-100 shrink-0 border border-gray-200"
+          />
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+                {theme.label}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500">
+              {new Date(session.createdAt).toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            {duration && (
+              <p className="text-xs text-gray-400 mt-0.5">Duration: {duration}</p>
+            )}
           </div>
         </div>
+
+        {/* Score banner */}
+        {total !== null && sc && (
+          <div className={`rounded-xl border ${sc.border} ${sc.bg} px-5 py-3 text-center shrink-0`}>
+            <p className={`text-3xl font-bold ${sc.text}`}>
+              {total}<span className="text-sm font-normal opacity-60">/30</span>
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Tab navigation */}
+      {hasFeedback && (
+        <>
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="flex gap-6">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => switchTab(tab.key)}
+                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? "border-indigo-600 text-indigo-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Tab content */}
+          {activeTab === "feedback" && (
+            <FeedbackView
+              feedback={session.feedback as FeedbackResult}
+              transcript={session.transcript || []}
+              imageUrl={session.image.url}
+              hideActions
+            />
+          )}
+
+          {activeTab === "transcript" && (
+            <TranscriptView
+              transcript={session.transcript || []}
+              onBack={() => switchTab("feedback")}
+            />
+          )}
+
+          {activeTab === "analytics" && (
+            <SessionAnalytics feedback={session.feedback as FeedbackResult} />
+          )}
+        </>
       )}
 
-      {/* Analyze button for completed sessions without feedback */}
-      {session.status === "COMPLETED" && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center mb-6">
-          <p className="text-sm text-gray-500 mb-3">This session hasn&apos;t been analyzed yet.</p>
-          <button
-            onClick={retryAnalysis}
-            className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Analyze Now
-          </button>
-        </div>
+      {/* Fallback for sessions without feedback */}
+      {!hasFeedback && (
+        <>
+          {/* Presentation text */}
+          {session.transcript?.find((m) => m.role === "presentation") && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                Your Presentation
+              </h2>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {session.transcript.find((m) => m.role === "presentation")?.content}
+              </p>
+            </div>
+          )}
+
+          {/* Conversation */}
+          {session.transcript?.filter((m) => m.role !== "presentation").length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
+                Conversation Transcript
+              </h2>
+              <div className="space-y-4">
+                {session.transcript
+                  .filter((m) => m.role !== "presentation")
+                  .map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                          msg.role === "student"
+                            ? "bg-gray-100 text-gray-900 rounded-br-md"
+                            : "bg-indigo-50 text-indigo-900 rounded-bl-md"
+                        }`}
+                      >
+                        <p className="text-xs font-medium mb-1 opacity-60">
+                          {msg.role === "student" ? "You" : "Examiner"}
+                        </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {session.status === "COMPLETED" && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center mb-6">
+              <p className="text-sm text-gray-500 mb-3">This session hasn&apos;t been analyzed yet.</p>
+              <button
+                onClick={retryAnalysis}
+                className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Analyze Now
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-3">
+      {/* Bottom actions */}
+      <div className="flex gap-3 mt-8">
         <Link
-          href="/student/practice"
+          href={`/student/practice?theme=${session.image.theme}`}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          Start New Practice
+          Practice Again
         </Link>
         <Link
           href="/student/history"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
         >
-          View All Sessions
+          Back to History
         </Link>
       </div>
     </div>

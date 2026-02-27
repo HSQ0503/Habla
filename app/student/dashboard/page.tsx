@@ -3,6 +3,22 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { themeColors } from "@/lib/theme-colors";
+import { CriterionBars, ScoreTrend } from "@/components/dashboard/DashboardCharts";
+
+function scoreColor(total: number) {
+  if (total >= 20) return "text-green-600";
+  if (total >= 12) return "text-yellow-600";
+  return "text-red-500";
+}
+
+function formatDuration(startDate: Date | null, endDate: Date | null) {
+  if (!startDate || !endDate) return null;
+  const diffMs = endDate.getTime() - startDate.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "<1m";
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
 
 export default async function StudentDashboard() {
   const session = await getServerSession(authOptions);
@@ -18,37 +34,42 @@ export default async function StudentDashboard() {
 
   const totalCompleted = completedSessions.length;
 
-  // Average score across all criteria
-  let avgScore: number | null = null;
-  if (totalCompleted > 0) {
-    const scores = completedSessions
-      .map(
-        (s: {
-          scoreA: number | null;
-          scoreB1: number | null;
-          scoreB2: number | null;
-          scoreC: number | null;
-        }): number | null => {
-          const vals = [s.scoreA, s.scoreB1, s.scoreB2, s.scoreC].filter(
-            (v): v is number => v !== null
-          );
-          return vals.length > 0
-            ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length
-            : null;
-        }
-      )
-      .filter((v: number | null): v is number => v !== null);
-    if (scores.length > 0) {
-      avgScore =
-        Math.round(
-          (scores.reduce((a: number, b: number) => a + b, 0) / scores.length) * 10
-        ) / 10;
-    }
-  }
+  // Scored sessions with all 4 criterion scores
+  const scored = completedSessions.filter(
+    (s) => s.scoreA !== null && s.scoreB1 !== null && s.scoreB2 !== null && s.scoreC !== null
+  );
+
+  // Total scores (sum of all criteria, out of 30)
+  const totals = scored.map((s) => (s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0));
+
+  const avgScore =
+    totals.length > 0
+      ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10
+      : null;
+
+  const bestScore =
+    totals.length > 0
+      ? Math.round(Math.max(...totals) * 10) / 10
+      : null;
 
   const lastSessionDate = completedSessions[0]?.completedAt;
 
-  const recentSessions = completedSessions.slice(0, 3);
+  // Criterion averages
+  const avgA = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreA ?? 0), 0) / scored.length) * 10) / 10 : null;
+  const avgB1 = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreB1 ?? 0), 0) / scored.length) * 10) / 10 : null;
+  const avgB2 = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreB2 ?? 0), 0) / scored.length) * 10) / 10 : null;
+  const avgC = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreC ?? 0), 0) / scored.length) * 10) / 10 : null;
+
+  // Score trend data (chronological)
+  const scoreTrendData = scored
+    .slice()
+    .reverse()
+    .map((s) => ({
+      date: (s.completedAt ?? s.createdAt).toISOString(),
+      total: Math.round(((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10) / 10,
+    }));
+
+  const recentSessions = completedSessions.slice(0, 5);
 
   return (
     <div>
@@ -84,8 +105,8 @@ export default async function StudentDashboard() {
         </div>
       ) : (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          {/* Stats - 4 cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 rounded-lg text-indigo-600 bg-indigo-50">
@@ -107,9 +128,23 @@ export default async function StudentDashboard() {
                 </div>
               </div>
               <p className="text-2xl font-semibold text-gray-900">
-                {avgScore !== null ? avgScore : "—"}
+                {avgScore !== null ? <>{avgScore}<span className="text-sm font-normal text-gray-400">/30</span></> : "—"}
               </p>
               <p className="text-sm text-gray-500 mt-0.5">Average Score</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg text-amber-600 bg-amber-50">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.996.078-1.927.228-2.25.75l3.659 3.659M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.996.078 1.927.228 2.25.75l-3.659 3.659M18.75 4.236V2.721m0 1.515-2.023.331M5.25 4.236l2.022.331m11.455 0c-.373 1.838-1.193 3.502-2.354 4.904M7.272 4.567c.373 1.838 1.193 3.502 2.354 4.904m6.879 0a12.14 12.14 0 0 1-2.505 2.021m-6.879-6.925c.373 1.838 1.193 3.502 2.354 4.904m4.525 0a12.14 12.14 0 0 1-4.525 0" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-2xl font-semibold text-gray-900">
+                {bestScore !== null ? <>{bestScore}<span className="text-sm font-normal text-gray-400">/30</span></> : "—"}
+              </p>
+              <p className="text-sm text-gray-500 mt-0.5">Best Score</p>
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -131,6 +166,14 @@ export default async function StudentDashboard() {
               <p className="text-sm text-gray-500 mt-0.5">Last Practice</p>
             </div>
           </div>
+
+          {/* Criterion averages */}
+          {avgA !== null && (
+            <CriterionBars avgs={{ A: avgA, B1: avgB1, B2: avgB2, C: avgC }} />
+          )}
+
+          {/* Score trend chart */}
+          <ScoreTrend scores={scoreTrendData} />
 
           {/* CTA */}
           <div className="mb-8">
@@ -159,31 +202,17 @@ export default async function StudentDashboard() {
               </Link>
             </div>
             <div className="space-y-2">
-              {recentSessions.map(
-                (s: {
-                  id: string;
-                  image: { theme: string };
-                  scoreA: number | null;
-                  scoreB1: number | null;
-                  scoreB2: number | null;
-                  scoreC: number | null;
-                  completedAt: Date | null;
-                }) => {
+              {recentSessions.map((s) => {
                 const theme = themeColors[s.image.theme] || {
                   bg: "bg-gray-100",
                   text: "text-gray-700",
                   label: s.image.theme,
                 };
-                const scores = [s.scoreA, s.scoreB1, s.scoreB2, s.scoreC].filter(
-                  (v): v is number => v !== null
-                );
-                const avg =
-                  scores.length > 0
-                    ? Math.round(
-                        (scores.reduce((a: number, b: number) => a + b, 0) / scores.length) *
-                          10
-                      ) / 10
-                    : null;
+                const hasScores = s.scoreA !== null && s.scoreB1 !== null && s.scoreB2 !== null && s.scoreC !== null;
+                const total = hasScores
+                  ? Math.round(((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10) / 10
+                  : null;
+                const duration = formatDuration(s.prepStartedAt, s.completedAt);
 
                 return (
                   <Link
@@ -191,8 +220,8 @@ export default async function StudentDashboard() {
                     href={`/student/history/${s.id}`}
                     className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${theme.bg} ${theme.text}`}>
                         {theme.label}
                       </span>
                       <span className="text-sm text-gray-500">
@@ -204,11 +233,23 @@ export default async function StudentDashboard() {
                             })
                           : "—"}
                       </span>
+                      {duration && (
+                        <span className="text-xs text-gray-400">{duration}</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      {avg !== null && (
-                        <span className="text-sm font-medium text-gray-900">
-                          {avg}/10
+                    <div className="flex items-center gap-3 shrink-0 ml-4">
+                      {/* Criterion dots */}
+                      {hasScores && (
+                        <div className="hidden sm:flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400">A:{s.scoreA}</span>
+                          <span className="text-xs text-gray-400">B1:{s.scoreB1}</span>
+                          <span className="text-xs text-gray-400">B2:{s.scoreB2}</span>
+                          <span className="text-xs text-gray-400">C:{s.scoreC}</span>
+                        </div>
+                      )}
+                      {total !== null && (
+                        <span className={`text-sm font-semibold ${scoreColor(total)}`}>
+                          {total}/30
                         </span>
                       )}
                       <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

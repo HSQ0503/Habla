@@ -34,12 +34,55 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: "Progress",
+    href: "/student/progress",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinError, setJoinError] = useState("");
+  const [joinSuccess, setJoinSuccess] = useState("");
+  const [joining, setJoining] = useState(false);
+
+  async function handleJoinClass() {
+    if (!joinCode.trim()) return;
+    setJoinError("");
+    setJoining(true);
+    try {
+      const res = await fetch("/api/classes/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: joinCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setJoinError(data.error || "Failed to join class");
+      } else {
+        setJoinSuccess(`Joined ${data.class.name}!`);
+        setTimeout(() => {
+          setJoinModalOpen(false);
+          setJoinCode("");
+          setJoinSuccess("");
+          updateSession();
+          window.location.reload();
+        }, 1500);
+      }
+    } catch {
+      setJoinError("Something went wrong");
+    }
+    setJoining(false);
+  }
 
   // Hide sidebar shell during active practice sessions
   const inSession = /^\/student\/practice\/[^/]+$/.test(pathname);
@@ -92,9 +135,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         {session?.user && !session.user.classId && (
           <div className="mx-4 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs font-medium text-amber-800 mb-1">No class joined</p>
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-600 mb-2">
               Ask your teacher for a class code to join.
             </p>
+            <button
+              onClick={() => setJoinModalOpen(true)}
+              className="w-full px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              Join Class
+            </button>
           </div>
         )}
       </aside>
@@ -127,6 +176,75 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
         <main className="p-6">{children}</main>
       </div>
+
+      {/* Join Class Modal */}
+      {joinModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-[60]"
+            onClick={() => {
+              setJoinModalOpen(false);
+              setJoinCode("");
+              setJoinError("");
+              setJoinSuccess("");
+            }}
+          />
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm shadow-lg">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Join a Class</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Enter the 6-character code your teacher gave you.
+              </p>
+
+              {joinSuccess ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <p className="text-sm font-medium text-green-700">{joinSuccess}</p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => {
+                      setJoinCode(e.target.value.toUpperCase().slice(0, 6));
+                      setJoinError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoinClass()}
+                    placeholder="e.g. ABC234"
+                    maxLength={6}
+                    className="w-full px-3 py-2 text-center font-mono text-xl tracking-widest border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
+                    autoFocus
+                  />
+
+                  {joinError && (
+                    <p className="text-xs text-red-600 mb-3">{joinError}</p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setJoinModalOpen(false);
+                        setJoinCode("");
+                        setJoinError("");
+                      }}
+                      className="flex-1 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleJoinClass}
+                      disabled={joinCode.length !== 6 || joining}
+                      className="flex-1 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    >
+                      {joining ? "Joining..." : "Join"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ type Props = {
   feedback: FeedbackResult;
   transcript: ChatMessage[];
   imageUrl: string;
+  hideActions?: boolean;
 };
 
 function scoreBannerColor(total: number) {
@@ -95,11 +96,11 @@ function CriterionCard({
   );
 }
 
-export default function FeedbackView({ feedback, transcript, imageUrl }: Props) {
+export default function FeedbackView({ feedback, transcript, imageUrl, hideActions }: Props) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [showMetrics, setShowMetrics] = useState(false);
 
-  if (showTranscript) {
+  if (!hideActions && showTranscript) {
     return <TranscriptView transcript={transcript} onBack={() => setShowTranscript(false)} />;
   }
 
@@ -310,26 +311,28 @@ export default function FeedbackView({ feedback, transcript, imageUrl }: Props) 
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/student/practice"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Practice Again
-        </Link>
-        <button
-          onClick={() => setShowTranscript(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          View Full Transcript
-        </button>
-        <Link
-          href="/student/dashboard"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          Back to Dashboard
-        </Link>
-      </div>
+      {!hideActions && (
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/student/practice"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Practice Again
+          </Link>
+          <button
+            onClick={() => setShowTranscript(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            View Full Transcript
+          </button>
+          <Link
+            href="/student/dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

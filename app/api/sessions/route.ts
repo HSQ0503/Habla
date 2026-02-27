@@ -6,19 +6,25 @@ import { db } from "@/lib/db";
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
+    console.log("[SESSION:CREATE] Unauthorized request — no session");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { imageId } = await request.json();
+  console.log(`[SESSION:CREATE] User ${session.user.id} creating session with imageId=${imageId}`);
 
   if (!imageId) {
+    console.log("[SESSION:CREATE] Missing imageId");
     return NextResponse.json({ error: "imageId is required" }, { status: 400 });
   }
 
   const image = await db.image.findUnique({ where: { id: imageId } });
   if (!image) {
+    console.log(`[SESSION:CREATE] Image not found: ${imageId}`);
     return NextResponse.json({ error: "Image not found" }, { status: 404 });
   }
+
+  console.log(`[SESSION:CREATE] Image found: theme=${image.theme}`);
 
   const practiceSession = await db.session.create({
     data: {
@@ -30,6 +36,8 @@ export async function POST(request: Request) {
     },
     include: { image: true },
   });
+
+  console.log(`[SESSION:CREATE] Session created: id=${practiceSession.id}, status=PREPARING`);
 
   return NextResponse.json(practiceSession, { status: 201 });
 }

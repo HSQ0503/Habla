@@ -59,6 +59,14 @@ export const authOptions: NextAuthOptions = {
         token.classId = u.classId;
         token.name = u.name;
       }
+      // Always refresh classId from DB so join-class takes effect without re-login
+      if (token.id) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.id as string },
+          select: { classId: true },
+        });
+        if (dbUser) token.classId = dbUser.classId;
+      }
       return token;
     },
     async session({ session, token }) {

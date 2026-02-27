@@ -195,6 +195,9 @@ function validateGrades(grades: IBGrades): string | null {
 }
 
 async function callGPT(prompt: string): Promise<IBGrades> {
+  console.log(`[IB-GRADER] Calling GPT-4o for grading (prompt length: ${prompt.length} chars)`);
+  const startTime = Date.now();
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [{ role: "user", content: prompt }],
@@ -204,7 +207,13 @@ async function callGPT(prompt: string): Promise<IBGrades> {
   });
 
   const raw = completion.choices[0]?.message?.content || "";
-  return JSON.parse(raw) as IBGrades;
+  const elapsed = Date.now() - startTime;
+  console.log(`[IB-GRADER] GPT-4o responded in ${elapsed}ms (${completion.usage?.total_tokens || "?"} tokens)`);
+
+  const grades = JSON.parse(raw) as IBGrades;
+  console.log(`[IB-GRADER] Raw grades: A=${grades.criterionA.mark} (${grades.criterionA.band}), B1=${grades.criterionB1.mark} (${grades.criterionB1.band}), B2=${grades.criterionB2.mark} (${grades.criterionB2.band}), C=${grades.criterionC.mark} (${grades.criterionC.band}), total=${grades.totalMark}`);
+
+  return grades;
 }
 
 /**
@@ -217,9 +226,13 @@ export async function gradeSession(
   imageAnalysis: unknown,
   sessionTimestamps: SessionTimestamps
 ): Promise<IBGrades> {
+  console.log("[IB-GRADER] Starting IB grading");
+
   const conversationMessages = transcript.filter(
     (m) => m.role === "student" || m.role === "examiner"
   );
+
+  console.log(`[IB-GRADER] Input: ${conversationMessages.length} conversation messages, presentation=${presentationText.length > 0 ? `${presentationText.split(/\s+/).filter(Boolean).length} words` : "none"}`);
 
   const prompt = buildGradingPrompt(
     presentationText,
@@ -232,18 +245,22 @@ export async function gradeSession(
   let validationError = validateGrades(grades);
 
   if (validationError) {
-    console.error(`IB grading validation failed: ${validationError}. Retrying...`);
+    console.error(`[IB-GRADER] Validation failed: ${validationError}. Retrying...`);
     grades = await callGPT(prompt);
     validationError = validateGrades(grades);
 
     if (validationError) {
-      console.error(`IB grading retry also failed: ${validationError}. Fixing total.`);
-      // Fix the total as a last resort
+      console.error(`[IB-GRADER] Retry also failed: ${validationError}. Fixing total.`);
       grades.totalMark =
         grades.criterionA.mark + grades.criterionB1.mark +
         grades.criterionB2.mark + grades.criterionC.mark;
+      console.log(`[IB-GRADER] Fixed total to ${grades.totalMark}`);
     }
+  } else {
+    console.log("[IB-GRADER] Grades validated successfully");
   }
+
+  console.log(`[IB-GRADER] Final grades: A=${grades.criterionA.mark}/12, B1=${grades.criterionB1.mark}/6, B2=${grades.criterionB2.mark}/6, C=${grades.criterionC.mark}/6, total=${grades.totalMark}/30`);
 
   return grades;
 }

@@ -40,10 +40,11 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role      Role
-  classId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role         Role
+  classId      String?
+  teacherNotes String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   class         Class?    @relation("ClassStudents", fields: [classId], references: [id])
   taughtClasses Class[]   @relation("ClassTeacher")

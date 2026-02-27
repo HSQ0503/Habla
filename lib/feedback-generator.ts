@@ -27,6 +27,8 @@ type SessionWithImage = {
 export async function generateFeedback(
   session: SessionWithImage
 ): Promise<FeedbackResult> {
+  console.log("[FEEDBACK] Starting feedback generation pipeline");
+
   const transcript = (session.transcript as ChatMessage[]) || [];
 
   // Extract presentation and conversation from transcript
@@ -44,12 +46,19 @@ export async function generateFeedback(
     .filter(Boolean)
     .join(" ");
 
+  console.log(`[FEEDBACK] Transcript: ${transcript.length} total messages, ${studentMessages.length} student messages, ${conversationMessages.length - studentMessages.length} examiner messages`);
+  console.log(`[FEEDBACK] Presentation: ${presentationText.split(/\s+/).filter(Boolean).length} words`);
+  console.log(`[FEEDBACK] Total student text: ${allStudentText.split(/\s+/).filter(Boolean).length} words`);
+
   const timestamps = {
     prepStartedAt: session.prepStartedAt,
     presentStartedAt: session.presentStartedAt,
     converseStartedAt: session.converseStartedAt,
     completedAt: session.completedAt,
   };
+
+  console.log("[FEEDBACK] Running all analyses in parallel: ibGrader, tenses, depth, vocabulary, pace");
+  const startTime = Date.now();
 
   // Run all analyses in parallel
   const [ibGrades, tenses, depth, vocabulary, pace] = await Promise.all([
@@ -59,6 +68,14 @@ export async function generateFeedback(
     Promise.resolve(analyzeVocabulary(allStudentText)),
     Promise.resolve(analyzeSpeakingPace(transcript, timestamps)),
   ]);
+
+  const elapsed = Date.now() - startTime;
+  console.log(`[FEEDBACK] All analyses complete in ${elapsed}ms`);
+  console.log(`[FEEDBACK] IB Grades: A=${ibGrades.criterionA.mark}/12, B1=${ibGrades.criterionB1.mark}/6, B2=${ibGrades.criterionB2.mark}/6, C=${ibGrades.criterionC.mark}/6, total=${ibGrades.totalMark}/30`);
+  console.log(`[FEEDBACK] Tenses: ${tenses.totalTensesUsed} found, variety=${tenses.varietyScore}/10, dominant=${tenses.dominantTense}, missing=[${tenses.missingTenses.join(", ")}]`);
+  console.log(`[FEEDBACK] Depth: overall=${depth.overallScore}/10, avgLength=${depth.averageResponseLength} words, strongest=${depth.strongestFactor}, weakest=${depth.weakestFactor}`);
+  console.log(`[FEEDBACK] Vocabulary: level=${vocabulary.estimatedLevel}, diversity=${vocabulary.lexicalDiversity}, complexity=${vocabulary.complexityScore}/10, advanced=[${vocabulary.advancedWords.slice(0, 5).join(", ")}${vocabulary.advancedWords.length > 5 ? "..." : ""}]`);
+  console.log(`[FEEDBACK] Pace: overall=${pace.overallWPM} WPM, presentation=${pace.presentationWPM} WPM, conversation=${pace.conversationWPM} WPM, fluency=${pace.fluencyRating} (${pace.fluencyScore}/10)`);
 
   return {
     ibGrades,

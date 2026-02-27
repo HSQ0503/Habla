@@ -70,18 +70,22 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log(`[SESSION:PATCH] User ${session.user.id} advancing session=${id} to ${status}`);
+
   try {
     const updated = await advanceSession(id, status);
 
     // Save presentation text into transcript when moving to CONVERSING
     if (status === "CONVERSING" && presentationText) {
+      const wordCount = presentationText.split(/\s+/).filter(Boolean).length;
+      console.log(`[SESSION:PATCH] Saving presentation text (${wordCount} words) to session=${id}`);
       const transcript =
         (updated.transcript as ChatMessage[]) || [];
       transcript.unshift({
         role: "presentation" as const,
         content: presentationText,
         timestamp: new Date().toISOString(),
-        wordCount: presentationText.split(/\s+/).filter(Boolean).length,
+        wordCount,
       });
       await db.session.update({
         where: { id },
@@ -91,6 +95,7 @@ export async function PATCH(
 
     // Auto-trigger analysis when session completes
     if (status === "COMPLETED") {
+      console.log(`[SESSION:PATCH] Session=${id} completed — triggering auto-analysis`);
       const fullSession = await db.session.findUnique({
         where: { id },
         include: { image: true },
@@ -99,6 +104,7 @@ export async function PATCH(
         // Fire and forget — don't block the response
         generateFeedback(fullSession)
           .then(async (result) => {
+            console.log(`[SESSION:PATCH] Auto-analysis complete for session=${id}, total=${result.ibGrades.totalMark}/30`);
             await db.session.update({
               where: { id },
               data: {
@@ -111,9 +117,10 @@ export async function PATCH(
                 vocabularyLevel: result.quantitative.vocabulary.estimatedLevel,
               },
             });
+            console.log(`[SESSION:PATCH] Scores saved to DB for session=${id}`);
           })
           .catch((err) => {
-            console.error("Auto-analysis failed:", err);
+            console.error(`[SESSION:PATCH] Auto-analysis FAILED for session=${id}:`, err);
             db.session.update({
               where: { id },
               data: {
@@ -130,6 +137,7 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid transition";
+    console.error(`[SESSION:PATCH] Transition failed for session=${id}: ${message}`);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

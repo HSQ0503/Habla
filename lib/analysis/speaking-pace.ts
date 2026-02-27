@@ -56,6 +56,7 @@ export function analyzeSpeakingPace(
   transcript: ChatMessage[],
   sessionTimestamps: SessionTimestamps
 ): PaceAnalysis {
+  console.log("[PACE] Analyzing speaking pace");
   const presentationEntry = transcript.find((m) => m.role === "presentation");
   const studentMessages = transcript.filter((m) => m.role === "student");
 
@@ -132,6 +133,8 @@ export function analyzeSpeakingPace(
 
   const fluencyRating = fluencyRatingFromWPM(overallWPM || conversationWPM);
   const fluencyScore = fluencyScoreFromWPM(overallWPM || conversationWPM);
+
+  console.log(`[PACE] Results: overall=${overallWPM} WPM, presentation=${presentationWPM} WPM, conversation=${conversationWPM} WPM, variability=${paceVariability}, fluency=${fluencyRating} (${fluencyScore}/10)`);
 
   return {
     overallWPM,
