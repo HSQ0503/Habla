@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { RealtimeClient, type ConnectionState } from "@/lib/realtime-client";
+import { RealtimeClient, type ConnectionState, type SessionConfig } from "@/lib/realtime-client";
 import type { ChatMessage } from "@/lib/types";
 
 type UseRealtimeVoiceReturn = {
@@ -14,7 +14,7 @@ type UseRealtimeVoiceReturn = {
   disconnect: () => Promise<void>;
   toggleMic: () => void;
   getMediaStream: () => MediaStream | null;
-  updateInstructions: (instructions: string) => void;
+  updateSession: (config: Partial<SessionConfig>) => void;
   triggerResponse: (text?: string) => void;
 };
 
@@ -99,7 +99,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
         throw new Error(data.error || "Failed to get voice token");
       }
 
-      const { token } = await tokenRes.json();
+      const { token, instructions, turnDetection } = await tokenRes.json();
 
       // 2. Create and connect client
       const client = new RealtimeClient({
@@ -109,7 +109,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
         onError: (err) => setError(err.message),
       });
 
-      await client.connect(token);
+      await client.connect(token, { instructions, turnDetection });
       clientRef.current = client;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect voice");
@@ -139,8 +139,8 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     return clientRef.current?.getMediaStream() || null;
   }, []);
 
-  const updateInstructions = useCallback((instructions: string) => {
-    clientRef.current?.updateInstructions(instructions);
+  const updateSession = useCallback((config: Partial<SessionConfig>) => {
+    clientRef.current?.updateSession(config);
   }, []);
 
   const triggerResponse = useCallback((text?: string) => {
@@ -165,7 +165,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     disconnect,
     toggleMic,
     getMediaStream,
-    updateInstructions,
+    updateSession,
     triggerResponse,
   };
 }

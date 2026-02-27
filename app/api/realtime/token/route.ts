@@ -83,11 +83,9 @@ export async function POST(request: Request) {
         session: {
           type: "realtime",
           model: "gpt-realtime",
-          instructions,
           audio: {
             output: { voice: "alloy" },
           },
-          turn_detection: turnDetection,
         },
       }),
     });
@@ -104,7 +102,11 @@ export async function POST(request: Request) {
     const data = await response.json();
     console.log(`[REALTIME:TOKEN] Token created for session=${sessionId}`);
 
-    return NextResponse.json({ token: data.value });
+    return NextResponse.json({
+      token: data.value,
+      instructions,
+      turnDetection,
+    });
   } catch (err) {
     console.error(`[REALTIME:TOKEN] Failed to create client secret:`, err);
     return NextResponse.json(

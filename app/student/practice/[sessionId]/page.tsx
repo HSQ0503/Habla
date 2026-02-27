@@ -91,8 +91,16 @@ export default function SessionPage() {
     });
     const { instructions } = await res.json();
 
-    // 3. Update AI instructions via data channel
-    voice.updateInstructions(instructions);
+    // 3. Update AI instructions and turn detection via data channel
+    voice.updateSession({
+      instructions,
+      turnDetection: {
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 800,
+      },
+    });
 
     // 4. Trigger first examiner question
     voice.triggerResponse(

@@ -19,7 +19,7 @@ type VoiceState = {
   disconnect: () => Promise<void>;
   toggleMic: () => void;
   getMediaStream: () => MediaStream | null;
-  updateInstructions: (instructions: string) => void;
+  updateSession: (config: Record<string, unknown>) => void;
   triggerResponse: (text?: string) => void;
 };
 

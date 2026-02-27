@@ -2,6 +2,16 @@ import type { ChatMessage } from "@/lib/types";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "failed";
 
+export type SessionConfig = {
+  instructions: string;
+  turnDetection: {
+    type: string;
+    threshold: number;
+    prefix_padding_ms: number;
+    silence_duration_ms: number;
+  };
+};
+
 export type RealtimeCallbacks = {
   onConnectionStateChange: (state: ConnectionState) => void;
   onTranscriptUpdate: (transcript: ChatMessage[]) => void;
@@ -21,7 +31,7 @@ export class RealtimeClient {
     this.callbacks = callbacks;
   }
 
-  async connect(ephemeralToken: string): Promise<void> {
+  async connect(ephemeralToken: string, config: SessionConfig): Promise<void> {
     this.callbacks.onConnectionStateChange("connecting");
 
     // 1. Create peer connection
@@ -43,11 +53,12 @@ export class RealtimeClient {
     this.dc.onmessage = (event) => this.handleEvent(JSON.parse(event.data));
     this.dc.onopen = () => {
       console.log("[REALTIME] Data channel open");
-      // Enable input audio transcription via session.update
       this.dc!.send(JSON.stringify({
         type: "session.update",
         session: {
           type: "realtime",
+          instructions: config.instructions,
+          turn_detection: config.turnDetection,
           input_audio_transcription: {
             model: "gpt-4o-mini-transcription",
           },
@@ -162,15 +173,16 @@ export class RealtimeClient {
     this.callbacks.onTranscriptUpdate([...this.transcript]);
   }
 
-  updateInstructions(newInstructions: string): void {
+  updateSession(config: Partial<SessionConfig>): void {
     if (this.dc?.readyState === "open") {
-      this.dc.send(JSON.stringify({
-        type: "session.update",
-        session: {
-          type: "realtime",
-          instructions: newInstructions,
-        },
-      }));
+      const session: Record<string, unknown> = { type: "realtime" };
+      if (config.instructions !== undefined) {
+        session.instructions = config.instructions;
+      }
+      if (config.turnDetection !== undefined) {
+        session.turn_detection = config.turnDetection;
+      }
+      this.dc.send(JSON.stringify({ type: "session.update", session }));
     }
   }
 

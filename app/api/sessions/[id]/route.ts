@@ -75,10 +75,18 @@ export async function PATCH(
     if (!Array.isArray(transcript)) {
       return NextResponse.json({ error: "transcript must be an array" }, { status: 400 });
     }
-    console.log(`[SESSION:PATCH] Saving voice transcript (${transcript.length} entries) for session=${id}`);
+
+    // Preserve server-side-only entries (e.g., presentation text)
+    const existing = (practiceSession.transcript as ChatMessage[]) || [];
+    const preservedEntries = existing.filter(
+      (m: ChatMessage) => m.role !== "student" && m.role !== "examiner"
+    );
+    const merged = [...preservedEntries, ...transcript];
+
+    console.log(`[SESSION:PATCH] Saving voice transcript (${transcript.length} voice + ${preservedEntries.length} preserved) for session=${id}`);
     await db.session.update({
       where: { id },
-      data: { transcript },
+      data: { transcript: merged },
     });
     return NextResponse.json({ ok: true });
   }
