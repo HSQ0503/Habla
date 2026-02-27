@@ -9,12 +9,13 @@ type Props = {
     theme: string;
   };
   onAdvance: () => void;
+  voiceMode?: boolean;
 };
 
 const PREP_SECONDS = 15 * 60; // 15 minutes
 const MIN_PREP_SECONDS = 60; // 1 minute minimum
 
-export default function PrepPhase({ image, onAdvance }: Props) {
+export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
   const [notes, setNotes] = useState("");
   const { formattedTime, totalElapsed } = useSessionTimer("down", PREP_SECONDS, onAdvance);
   const canAdvance = totalElapsed >= MIN_PREP_SECONDS;
@@ -58,6 +59,11 @@ export default function PrepPhase({ image, onAdvance }: Props) {
             placeholder="Jot down your ideas and key vocabulary here..."
             className="flex-1 min-h-[300px] px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
           />
+          {voiceMode && (
+            <p className="text-xs text-gray-400 mt-2">
+              When you&apos;re ready, you&apos;ll speak your presentation aloud.
+            </p>
+          )}
         </div>
       </div>
 

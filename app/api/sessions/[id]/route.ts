@@ -62,12 +62,25 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { status, presentationText } = await request.json();
+  const { status, presentationText, transcript } = await request.json();
 
   // Verify ownership
   const practiceSession = await db.session.findUnique({ where: { id } });
   if (!practiceSession || practiceSession.userId !== session.user.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Transcript-only update (voice mode auto-save)
+  if (transcript && !status) {
+    if (!Array.isArray(transcript)) {
+      return NextResponse.json({ error: "transcript must be an array" }, { status: 400 });
+    }
+    console.log(`[SESSION:PATCH] Saving voice transcript (${transcript.length} entries) for session=${id}`);
+    await db.session.update({
+      where: { id },
+      data: { transcript },
+    });
+    return NextResponse.json({ ok: true });
   }
 
   console.log(`[SESSION:PATCH] User ${session.user.id} advancing session=${id} to ${status}`);
@@ -90,6 +103,21 @@ export async function PATCH(
       await db.session.update({
         where: { id },
         data: { transcript },
+      });
+    }
+
+    // Save final voice transcript before analysis
+    if (status === "COMPLETED" && transcript && Array.isArray(transcript)) {
+      console.log(`[SESSION:PATCH] Saving final voice transcript (${transcript.length} entries) for session=${id}`);
+      // Preserve presentation entry from existing transcript
+      const existingTranscript = (updated.transcript as ChatMessage[]) || [];
+      const presentationEntry = existingTranscript.find((m) => m.role === "presentation");
+      const finalTranscript = presentationEntry
+        ? [presentationEntry, ...transcript]
+        : transcript;
+      await db.session.update({
+        where: { id },
+        data: { transcript: finalTranscript },
       });
     }
 

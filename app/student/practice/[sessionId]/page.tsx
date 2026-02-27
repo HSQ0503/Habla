@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { shouldUseVoice } from "@/lib/voice-config";
+import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import PrepPhase from "@/components/practice/PrepPhase";
 import PresentPhase from "@/components/practice/PresentPhase";
 import ConversePhase from "@/components/practice/ConversePhase";
+import MicPermission from "@/components/practice/MicPermission";
+import VoicePresentPhase from "@/components/practice/VoicePresentPhase";
+import VoiceConversPhase from "@/components/practice/VoiceConversPhase";
 
 type SessionData = {
   id: string;
@@ -25,6 +30,11 @@ export default function SessionPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"voice" | "text">(() => shouldUseVoice() ? "voice" : "text");
+  const [micReady, setMicReady] = useState(false);
+  const [voicePhaseOverride, setVoicePhaseOverride] = useState<string | null>(null);
+
+  const voice = useRealtimeVoice(sessionId);
 
   useEffect(() => {
     fetch(`/api/sessions/${sessionId}`)
@@ -56,6 +66,57 @@ export default function SessionPage() {
     const updated = await res.json();
     setSession(updated);
   }
+
+  // PREPARING → PRESENTING transition
+  const handlePrepAdvance = useCallback(async () => {
+    await advanceSession("PRESENTING");
+    if (mode === "voice") {
+      await voice.connect();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, sessionId]);
+
+  // PRESENTING → CONVERSING transition (voice mode)
+  const handleVoicePresentAdvance = useCallback(async (presentationText: string) => {
+    setVoicePhaseOverride("PRESENTING");
+
+    // 1. Advance server state (saves presentation text to DB)
+    await advanceSession("CONVERSING", presentationText);
+
+    // 2. Fetch conversation instructions (server builds prompt with aiAnalysis)
+    const res = await fetch("/api/realtime/instructions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    const { instructions } = await res.json();
+
+    // 3. Update AI instructions via data channel
+    voice.updateInstructions(instructions);
+
+    // 4. Trigger first examiner question
+    voice.triggerResponse(
+      "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
+    );
+
+    // 5. Release display lock
+    setVoicePhaseOverride(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // Voice conversation completion
+  const handleVoiceComplete = useCallback(async () => {
+    await voice.disconnect();
+    await advanceSession("COMPLETED");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // Text mode fallback during conversation
+  const handleFallbackToText = useCallback(() => {
+    voice.disconnect();
+    setMode("text");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -127,26 +188,66 @@ export default function SessionPage() {
     );
   }
 
+  const effectivePhase = voicePhaseOverride || session.status;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {session.status === "PREPARING" && (
-        <PrepPhase
-          image={session.image}
-          onAdvance={() => advanceSession("PRESENTING")}
-        />
+      {/* PREPARING phase */}
+      {effectivePhase === "PREPARING" && (
+        <>
+          {mode === "voice" && !micReady ? (
+            <MicPermission
+              onReady={() => setMicReady(true)}
+              onFallbackToText={() => setMode("text")}
+            />
+          ) : (
+            <PrepPhase
+              image={session.image}
+              onAdvance={handlePrepAdvance}
+              voiceMode={mode === "voice"}
+            />
+          )}
+        </>
       )}
-      {session.status === "PRESENTING" && (
-        <PresentPhase
-          image={session.image}
-          onAdvance={(text) => advanceSession("CONVERSING", text)}
-        />
+
+      {/* PRESENTING phase */}
+      {effectivePhase === "PRESENTING" && (
+        <>
+          {mode === "voice" ? (
+            <VoicePresentPhase
+              sessionId={session.id}
+              image={session.image}
+              voice={voice}
+              onAdvance={handleVoicePresentAdvance}
+            />
+          ) : (
+            <PresentPhase
+              image={session.image}
+              onAdvance={(text) => advanceSession("CONVERSING", text)}
+            />
+          )}
+        </>
       )}
-      {session.status === "CONVERSING" && (
-        <ConversePhase
-          sessionId={session.id}
-          image={session.image}
-          onComplete={() => advanceSession("COMPLETED")}
-        />
+
+      {/* CONVERSING phase */}
+      {effectivePhase === "CONVERSING" && (
+        <>
+          {mode === "voice" ? (
+            <VoiceConversPhase
+              sessionId={session.id}
+              image={session.image}
+              voice={voice}
+              onComplete={handleVoiceComplete}
+              onFallbackToText={handleFallbackToText}
+            />
+          ) : (
+            <ConversePhase
+              sessionId={session.id}
+              image={session.image}
+              onComplete={() => advanceSession("COMPLETED")}
+            />
+          )}
+        </>
       )}
     </div>
   );
