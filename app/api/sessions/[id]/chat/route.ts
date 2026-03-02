@@ -20,6 +20,9 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
   const studentMessage: string | undefined = body.message;
+  const subPhase: string | undefined = body.subPhase;
+  const generalTheme: string | undefined = body.generalTheme;
+  const generalThemeLabel: string | undefined = body.generalThemeLabel;
 
   console.log(`[CHAT] User ${session.user.id} sending message to session=${id}`);
 
@@ -75,7 +78,12 @@ export async function POST(
     practiceSession.image.talkingPoints,
     presentationText,
     (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null,
-    { language: practiceSession.language }
+    {
+      language: practiceSession.language,
+      subPhase: subPhase as "follow-up" | "general" | undefined,
+      generalTheme,
+      generalThemeLabel,
+    }
   );
 
   const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [

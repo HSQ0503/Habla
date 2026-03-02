@@ -38,18 +38,13 @@ export async function POST(request: Request) {
   }
 
   let instructions: string;
-  let turnDetection: { type: string; threshold: number; prefix_padding_ms: number; silence_duration_ms: number; create_response: boolean };
+  let turnDetection: { type: string; threshold: number; prefix_padding_ms: number; silence_duration_ms: number } | null;
 
   if (practiceSession.status === "PRESENTING") {
     // Minimal prompt — AI must NOT speak during presentation
     instructions = `You are an IB Individual Oral examiner. The student is now giving their presentation. LISTEN SILENTLY. Do NOT speak, do NOT respond, do NOT interrupt. You will be given instructions when the conversation phase begins.`;
-    turnDetection = {
-      type: "server_vad",
-      threshold: 0.9,
-      prefix_padding_ms: 300,
-      silence_duration_ms: 5000,
-      create_response: false,
-    };
+    // Disable turn detection entirely — prevents the API from detecting turns and auto-generating responses
+    turnDetection = null;
   } else {
     // CONVERSING — full examiner prompt
     const transcript = (practiceSession.transcript as ChatMessage[]) || [];
@@ -68,7 +63,6 @@ export async function POST(request: Request) {
       threshold: 0.5,
       prefix_padding_ms: 300,
       silence_duration_ms: 800,
-      create_response: true,
     };
   }
 

@@ -100,15 +100,20 @@ export default function VoicePresentPhase({ image, voice, onAdvance }: Props) {
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Image sidebar */}
-        <div className="shrink-0 lg:w-64 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white">
-          <div className="p-3">
-            <div className="rounded-lg overflow-hidden border border-gray-200">
+        <div className="shrink-0 lg:w-80 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white">
+          <div className="p-4">
+            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={image.url}
                 alt="Practice image"
-                className="w-full aspect-[4/3] object-cover"
+                className="w-full aspect-[4/3] object-cover max-h-48 lg:max-h-none"
               />
+            </div>
+            <div className="mt-2 flex justify-center">
+              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+                {theme.label}
+              </span>
             </div>
           </div>
         </div>

@@ -15,6 +15,7 @@ import VoiceConversPhase from "@/components/practice/VoiceConversPhase";
 type SessionData = {
   id: string;
   status: "PREPARING" | "PRESENTING" | "CONVERSING" | "COMPLETED" | "TERMINATED";
+  language?: string;
   image: {
     id: string;
     url: string;
@@ -81,21 +82,42 @@ export default function SessionPage() {
   const handleVoicePresentAdvance = useCallback(async (presentationText: string) => {
     setVoicePhaseOverride("PRESENTING");
 
-    // 1. Advance server state (saves presentation text to DB)
+    // 1. Save voice transcript before advancing (ensures presentation audio transcription is persisted)
+    const voiceEntries = voice.transcript.filter((m) => m.role === "student");
+    if (voiceEntries.length > 0) {
+      await fetch(`/api/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: voiceEntries }),
+      });
+    }
+
+    // 2. Advance server state (saves presentation text to DB)
     await advanceSession("CONVERSING", presentationText);
 
-    // 2. Fetch conversation instructions (server builds prompt with aiAnalysis)
+    // 3. Fetch conversation instructions (server builds prompt with presentation text + aiAnalysis)
     const res = await fetch("/api/realtime/instructions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId }),
     });
+
+    if (!res.ok) {
+      console.error("[SESSION] Failed to fetch conversation instructions");
+      setError("Failed to load conversation instructions. Please try again.");
+      setVoicePhaseOverride(null);
+      return;
+    }
+
     const { instructions } = await res.json();
 
-    // 3. Clear presentation-phase transcript so those entries don't appear as conversation messages
+    // 4. Disable presentation mode — allow AI to speak in conversation
+    voice.setPresentationMode(false);
+
+    // 5. Clear presentation-phase transcript so those entries don't appear as conversation messages
     voice.clearTranscript();
 
-    // 4. Update AI instructions and turn detection via data channel
+    // 6. Update AI instructions and enable turn detection for conversation
     voice.updateSession({
       instructions,
       turnDetection: {
@@ -103,19 +125,18 @@ export default function SessionPage() {
         threshold: 0.5,
         prefix_padding_ms: 300,
         silence_duration_ms: 800,
-        create_response: true,
       },
     });
 
-    // 5. Trigger first examiner question
+    // 7. Trigger first examiner question
     voice.triggerResponse(
       "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
     );
 
-    // 6. Release display lock
+    // 8. Release display lock
     setVoicePhaseOverride(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, voice.transcript]);
 
   // Voice conversation completion
   const handleVoiceComplete = useCallback(async () => {
@@ -125,8 +146,8 @@ export default function SessionPage() {
   }, [sessionId]);
 
   // Text mode fallback during conversation
-  const handleFallbackToText = useCallback(() => {
-    voice.disconnect();
+  const handleFallbackToText = useCallback(async () => {
+    await voice.disconnect();
     setMode("text");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -254,6 +275,7 @@ export default function SessionPage() {
             <VoiceConversPhase
               sessionId={session.id}
               image={session.image}
+              language={session.language}
               voice={voice}
               onComplete={handleVoiceComplete}
               onFallbackToText={handleFallbackToText}
@@ -262,6 +284,7 @@ export default function SessionPage() {
             <ConversePhase
               sessionId={session.id}
               image={session.image}
+              language={session.language}
               onComplete={() => advanceSession("COMPLETED")}
             />
           )}

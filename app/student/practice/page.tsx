@@ -342,7 +342,8 @@ export default function PracticePage() {
             <div className="space-y-1.5 text-sm text-indigo-700">
               <p>1. <strong>Preparation</strong> — 15 minutes to study the image and plan</p>
               <p>2. <strong>Presentation</strong> — 3–4 minutes to present your analysis</p>
-              <p>3. <strong>Conversation</strong> — 8–10 minutes discussing with the examiner</p>
+              <p>3. <strong>Follow-up Discussion</strong> — 4–5 minutes discussing your presentation</p>
+              <p>4. <strong>General Discussion</strong> — 5–6 minutes on a different theme</p>
             </div>
           </div>
 

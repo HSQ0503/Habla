@@ -17,6 +17,8 @@ type UseRealtimeVoiceReturn = {
   updateSession: (config: Partial<SessionConfig>) => void;
   triggerResponse: (text?: string) => void;
   clearTranscript: () => void;
+  setPresentationMode: (enabled: boolean) => void;
+  addMarker: (content: string) => void;
 };
 
 export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
@@ -86,6 +88,13 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
   const connect = useCallback(async () => {
     try {
       setError(null);
+
+      // Clean up any existing client before creating a new one
+      if (clientRef.current) {
+        clientRef.current.disconnect();
+        clientRef.current = null;
+      }
+
       setConnectionState("connecting");
 
       // 1. Fetch ephemeral token from our API
@@ -110,6 +119,9 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
         onError: (err) => setError(err.message),
       });
 
+      // Enable presentation mode when turn detection is disabled (PRESENTING phase)
+      client.presentationMode = turnDetection === null;
+
       await client.connect(token, { instructions, turnDetection });
       clientRef.current = client;
     } catch (err) {
@@ -131,10 +143,12 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
   }, [saveTranscript]);
 
   const toggleMic = useCallback(() => {
-    const newState = !isMicMuted;
-    clientRef.current?.setMicMuted(newState);
-    setIsMicMuted(newState);
-  }, [isMicMuted]);
+    setIsMicMuted((prev) => {
+      const newState = !prev;
+      clientRef.current?.setMicMuted(newState);
+      return newState;
+    });
+  }, []);
 
   const getMediaStream = useCallback(() => {
     return clientRef.current?.getMediaStream() || null;
@@ -150,6 +164,16 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
 
   const clearTranscript = useCallback(() => {
     clientRef.current?.clearTranscript();
+  }, []);
+
+  const setPresentationMode = useCallback((enabled: boolean) => {
+    if (clientRef.current) {
+      clientRef.current.presentationMode = enabled;
+    }
+  }, []);
+
+  const addMarker = useCallback((content: string) => {
+    clientRef.current?.addMarker(content);
   }, []);
 
   // Cleanup on unmount
@@ -173,5 +197,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     updateSession,
     triggerResponse,
     clearTranscript,
+    setPresentationMode,
+    addMarker,
   };
 }

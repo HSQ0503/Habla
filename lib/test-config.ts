@@ -16,3 +16,6 @@ export const MIN_PRESENT_SECONDS = isTestMode ? 3 : 60;
 export const MIN_CONVERSE_SECONDS = isTestMode ? 5 : 5 * 60;
 export const WARN_CONVERSE_SECONDS = isTestMode ? 15 : 10 * 60;
 export const MAX_CONVERSE_SECONDS = isTestMode ? 20 : 12 * 60;
+
+// Follow-up → General discussion transition
+export const FOLLOWUP_TARGET_SECONDS = isTestMode ? 8 : 5 * 60;

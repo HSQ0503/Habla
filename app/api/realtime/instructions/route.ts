@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { sessionId } = await request.json();
+  const { sessionId, subPhase, generalTheme, generalThemeLabel } = await request.json();
   if (!sessionId) {
     return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
   }
@@ -41,7 +41,13 @@ export async function POST(request: Request) {
     practiceSession.image.talkingPoints,
     presentationEntry?.content,
     (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null,
-    { mode: "voice", language: practiceSession.language }
+    {
+      mode: "voice",
+      language: practiceSession.language,
+      subPhase: subPhase as "follow-up" | "general" | undefined,
+      generalTheme,
+      generalThemeLabel,
+    }
   );
 
   console.log(`[REALTIME:INSTRUCTIONS] Built conversation prompt (${instructions.length} chars) for session=${sessionId}`);

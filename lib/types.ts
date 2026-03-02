@@ -1,5 +1,5 @@
 export type ChatMessage = {
-  role: "student" | "examiner" | "presentation";
+  role: "student" | "examiner" | "presentation" | "phase-transition";
   content: string;
   timestamp: string;
   wordCount?: number;

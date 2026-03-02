@@ -7,12 +7,11 @@ export type TurnDetection = {
   threshold: number;
   prefix_padding_ms: number;
   silence_duration_ms: number;
-  create_response: boolean;
 };
 
 export type SessionConfig = {
   instructions: string;
-  turnDetection: TurnDetection;
+  turnDetection: TurnDetection | null;
 };
 
 export type RealtimeCallbacks = {
@@ -29,9 +28,15 @@ export class RealtimeClient {
   private mediaStream: MediaStream | null = null;
   private transcript: ChatMessage[] = [];
   private callbacks: RealtimeCallbacks;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private _presentationMode = false;
 
   constructor(callbacks: RealtimeCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  set presentationMode(value: boolean) {
+    this._presentationMode = value;
   }
 
   async connect(ephemeralToken: string, config: SessionConfig): Promise<void> {
@@ -56,32 +61,44 @@ export class RealtimeClient {
     this.dc.onmessage = (event) => this.handleEvent(JSON.parse(event.data));
     this.dc.onopen = () => {
       console.log("[REALTIME] Data channel open");
-      this.dc!.send(JSON.stringify({
-        type: "session.update",
-        session: {
-          type: "realtime",
-          instructions: config.instructions,
-          audio: {
-            input: {
-              transcription: { model: "gpt-4o-mini-transcribe" },
-              turn_detection: config.turnDetection,
-            },
+      const sessionUpdate: Record<string, unknown> = {
+        type: "realtime",
+        instructions: config.instructions,
+        audio: {
+          input: {
+            transcription: { model: "gpt-4o-mini-transcription" },
+            turn_detection: config.turnDetection ?? null,
           },
         },
-      }));
+      };
+      this.dc!.send(JSON.stringify({ type: "session.update", session: sessionUpdate }));
       this.callbacks.onConnectionStateChange("connected");
     };
     this.dc.onclose = () => {
       console.log("[REALTIME] Data channel closed");
     };
 
-    // 5. Monitor connection state for failures
+    // 5. Monitor connection state for failures (with grace period for temporary disconnects)
     this.pc.onconnectionstatechange = () => {
       const state = this.pc?.connectionState;
       console.log(`[REALTIME] Connection state: ${state}`);
-      if (state === "failed" || state === "disconnected") {
+
+      if (this.disconnectTimer) {
+        clearTimeout(this.disconnectTimer);
+        this.disconnectTimer = null;
+      }
+
+      if (state === "failed") {
         this.callbacks.onConnectionStateChange("failed");
         this.callbacks.onError(new Error("Voice connection lost. Your transcript has been saved."));
+      } else if (state === "disconnected") {
+        // Give WebRTC 5 seconds to recover before treating as failed
+        this.disconnectTimer = setTimeout(() => {
+          if (this.pc?.connectionState === "disconnected") {
+            this.callbacks.onConnectionStateChange("failed");
+            this.callbacks.onError(new Error("Voice connection lost. Your transcript has been saved."));
+          }
+        }, 5000);
       }
     };
 
@@ -100,7 +117,7 @@ export class RealtimeClient {
         "Authorization": `Bearer ${ephemeralToken}`,
         "Content-Type": "application/sdp",
       },
-      body: offer.sdp,
+      body: this.pc.localDescription!.sdp,
     });
 
     if (!sdpResponse.ok) {
@@ -142,6 +159,12 @@ export class RealtimeClient {
 
       // AI started generating a response
       case "response.created":
+        if (this._presentationMode) {
+          // Cancel any AI response during presentation — student is presenting solo
+          console.log("[REALTIME] Cancelling AI response (presentation mode)");
+          this.dc?.send(JSON.stringify({ type: "response.cancel" }));
+          break;
+        }
         this.callbacks.onAiSpeakingChange(true);
         break;
 
@@ -186,10 +209,16 @@ export class RealtimeClient {
       }
       if (config.turnDetection !== undefined) {
         session.audio = {
-          input: { turn_detection: config.turnDetection },
+          input: { turn_detection: config.turnDetection ?? null },
         };
       }
       this.dc.send(JSON.stringify({ type: "session.update", session }));
+    }
+  }
+
+  cancelResponse(): void {
+    if (this.dc?.readyState === "open") {
+      this.dc.send(JSON.stringify({ type: "response.cancel" }));
     }
   }
 
@@ -223,6 +252,16 @@ export class RealtimeClient {
     return [...this.transcript];
   }
 
+  addMarker(content: string): void {
+    const entry: ChatMessage = {
+      role: "phase-transition",
+      content,
+      timestamp: new Date().toISOString(),
+    };
+    this.transcript.push(entry);
+    this.callbacks.onTranscriptUpdate([...this.transcript]);
+  }
+
   clearTranscript(): void {
     this.transcript = [];
     this.callbacks.onTranscriptUpdate([]);
@@ -230,15 +269,21 @@ export class RealtimeClient {
 
   disconnect(): void {
     console.log("[REALTIME] Disconnecting");
+    if (this.disconnectTimer) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
+    }
     this.mediaStream?.getTracks().forEach((track) => track.stop());
     this.dc?.close();
     this.pc?.close();
     if (this.audioElement) {
+      this.audioElement.pause();
       this.audioElement.srcObject = null;
     }
     this.pc = null;
     this.dc = null;
     this.audioElement = null;
     this.mediaStream = null;
+    this._presentationMode = false;
   }
 }

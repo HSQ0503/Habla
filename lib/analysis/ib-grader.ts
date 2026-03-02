@@ -35,8 +35,30 @@ function buildGradingPrompt(
   const conversationDuration =
     converseStart && completedAt ? minutesBetween(converseStart, completedAt) : 0;
 
-  const studentMsgs = conversationMessages.filter((m) => m.role === "student");
-  const examinerMsgs = conversationMessages.filter((m) => m.role === "examiner");
+  // Split conversation at phase-transition marker
+  const chatMessages = conversationMessages.filter(
+    (m) => m.role === "student" || m.role === "examiner"
+  );
+  const transitionIndex = conversationMessages.findIndex(
+    (m) => m.role === "phase-transition"
+  );
+
+  let followUpMessages: ChatMessage[];
+  let generalMessages: ChatMessage[];
+  if (transitionIndex >= 0) {
+    followUpMessages = conversationMessages
+      .slice(0, transitionIndex)
+      .filter((m) => m.role === "student" || m.role === "examiner");
+    generalMessages = conversationMessages
+      .slice(transitionIndex + 1)
+      .filter((m) => m.role === "student" || m.role === "examiner");
+  } else {
+    followUpMessages = chatMessages;
+    generalMessages = [];
+  }
+
+  const studentMsgs = chatMessages.filter((m) => m.role === "student");
+  const examinerMsgs = chatMessages.filter((m) => m.role === "examiner");
   const totalStudentWords = studentMsgs.reduce(
     (sum, m) => sum + (m.wordCount || m.content.split(/\s+/).filter(Boolean).length),
     0
@@ -44,7 +66,11 @@ function buildGradingPrompt(
   const avgResponseLength =
     studentMsgs.length > 0 ? Math.round(totalStudentWords / studentMsgs.length) : 0;
 
-  const formattedConversation = conversationMessages
+  const formattedFollowUp = followUpMessages
+    .map((m) => `[${m.role === "student" ? "STUDENT" : "EXAMINER"}]: ${m.content}`)
+    .join("\n\n");
+
+  const formattedGeneral = generalMessages
     .map((m) => `[${m.role === "student" ? "STUDENT" : "EXAMINER"}]: ${m.content}`)
     .join("\n\n");
 
@@ -116,11 +142,14 @@ ${imageAnalysisStr}
 
 COMPLETE TRANSCRIPT:
 
-[PRESENTATION PHASE]
+[PRESENTATION PHASE - Part 1]
 ${presentationText || "(No presentation text recorded)"}
 
-[CONVERSATION PHASE]
-${formattedConversation || "(No conversation recorded)"}
+[FOLLOW-UP DISCUSSION - Part 2]
+${formattedFollowUp || "(No follow-up discussion recorded)"}
+
+[GENERAL DISCUSSION - Part 3]
+${formattedGeneral || "(Session ended before general discussion)"}
 
 SESSION DATA:
 - Presentation duration: ${presentationDuration} minutes
@@ -138,8 +167,8 @@ GRADING INSTRUCTIONS:
 5. If a student is borderline between two bands, err on the side of the lower band unless there is clear evidence for the higher one.
 6. For Criterion A, look specifically for: variety of tenses, vocabulary range, grammatical accuracy, use of complex structures (subjunctive, conditionals, relative clauses).
 7. For Criterion B1, evaluate ONLY the presentation text — did they describe the image, interpret it, and connect it to culture?
-8. For Criterion B2, evaluate ONLY the conversation — did they answer questions fully, with depth, scope, and personal interpretation?
-9. For Criterion C, evaluate ONLY the conversation — did they sustain interaction, demonstrate comprehension, and contribute independently?
+8. For Criterion B2, evaluate the ENTIRE conversation (both Part 2 follow-up discussion and Part 3 general discussion). Note whether the student engaged with BOTH the image-related theme AND the separate general discussion theme. A student who demonstrates breadth across both themes shows stronger "scope" for higher marks. If the session ended before Part 3, do not penalize but note the limited scope.
+9. For Criterion C, evaluate the ENTIRE conversation (both parts). Pay attention to how the student handled the transition between themes — did they adapt smoothly and sustain interaction across both topics? Did they contribute independently?
 
 Respond in this EXACT JSON format with no additional text:
 {
@@ -234,11 +263,13 @@ export async function gradeSession(
 ): Promise<IBGrades> {
   console.log("[IB-GRADER] Starting IB grading");
 
+  // Include phase-transition markers so buildGradingPrompt can split follow-up from general
   const conversationMessages = transcript.filter(
-    (m) => m.role === "student" || m.role === "examiner"
+    (m) => m.role === "student" || m.role === "examiner" || m.role === "phase-transition"
   );
 
-  console.log(`[IB-GRADER] Input: ${conversationMessages.length} conversation messages, presentation=${presentationText.length > 0 ? `${presentationText.split(/\s+/).filter(Boolean).length} words` : "none"}`);
+  const chatOnly = conversationMessages.filter((m) => m.role === "student" || m.role === "examiner");
+  console.log(`[IB-GRADER] Input: ${chatOnly.length} conversation messages, presentation=${presentationText.length > 0 ? `${presentationText.split(/\s+/).filter(Boolean).length} words` : "none"}`);
 
   const prompt = buildGradingPrompt(
     presentationText,

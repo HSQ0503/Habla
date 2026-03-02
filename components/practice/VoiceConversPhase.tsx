@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
 import { themeColors } from "@/lib/theme-colors";
-import { MIN_CONVERSE_SECONDS, WARN_CONVERSE_SECONDS, MAX_CONVERSE_SECONDS, TEST_MODE } from "@/lib/test-config";
+import { pickRandomTheme, IB_THEME_LABELS, type IBTheme } from "@/lib/ib-themes";
+import { MIN_CONVERSE_SECONDS, WARN_CONVERSE_SECONDS, MAX_CONVERSE_SECONDS, FOLLOWUP_TARGET_SECONDS } from "@/lib/test-config";
 import AudioVisualizer from "./AudioVisualizer";
 import SpeakingIndicator from "./SpeakingIndicator";
 import VoiceControls from "./VoiceControls";
@@ -22,6 +23,7 @@ type VoiceState = {
   getMediaStream: () => MediaStream | null;
   updateSession: (config: Record<string, unknown>) => void;
   triggerResponse: (text?: string) => void;
+  addMarker: (content: string) => void;
 };
 
 type Props = {
@@ -30,12 +32,12 @@ type Props = {
     url: string;
     theme: string;
   };
+  language?: string;
   voice: VoiceState;
   onComplete: () => void;
   onFallbackToText: () => void;
 };
 
-// Timer constants imported from test-config
 const WARN_SECONDS = WARN_CONVERSE_SECONDS;
 const MAX_SECONDS = MAX_CONVERSE_SECONDS;
 
@@ -46,14 +48,17 @@ function timerColor(elapsed: number) {
   return "text-red-600";
 }
 
-function timerZoneLabel(elapsed: number) {
+function timerZoneLabel(elapsed: number, subPhase: "follow-up" | "general") {
   const minutes = elapsed / 60;
-  if (minutes < 8) return "Keep conversing";
-  if (minutes < 10) return "Ideal range (8-10 min)";
+  if (subPhase === "follow-up") {
+    if (minutes < 4) return "Part 2: Follow-up Discussion";
+    return "Transitioning soon...";
+  }
+  if (minutes < 10) return "Part 3: General Discussion";
   return "Time to wrap up";
 }
 
-export default function VoiceConversPhase({ image, voice, onComplete, onFallbackToText }: Props) {
+export default function VoiceConversPhase({ sessionId, image, language, voice, onComplete, onFallbackToText }: Props) {
   const [ending, setEnding] = useState(false);
   const endingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -61,11 +66,18 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
   const canEnd = totalElapsed >= MIN_CONVERSE_SECONDS;
   const showWarning = totalElapsed >= WARN_SECONDS && totalElapsed < MAX_SECONDS;
 
+  // Sub-phase tracking
+  const [subPhase, setSubPhase] = useState<"follow-up" | "general">("follow-up");
+  const [generalThemeLabel, setGeneralThemeLabel] = useState<string | null>(null);
+  const transitioned = useRef(false);
+
   const theme = themeColors[image.theme] || {
     bg: "bg-gray-100",
     text: "text-gray-700",
     label: image.theme,
   };
+
+  const lang = language || "es";
 
   // Auto-end at max time
   useEffect(() => {
@@ -74,6 +86,55 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
       onComplete();
     }
   }, [totalElapsed, onComplete]);
+
+  // Timer-based transition from follow-up to general discussion
+  useEffect(() => {
+    if (transitioned.current || totalElapsed < FOLLOWUP_TARGET_SECONDS) return;
+    transitioned.current = true;
+
+    const storageKey = `habla-general-theme-${sessionId}`;
+    const stored = sessionStorage.getItem(storageKey);
+    let themePick: IBTheme;
+    let labelPick: string;
+
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      themePick = parsed.theme;
+      labelPick = parsed.label;
+    } else {
+      themePick = pickRandomTheme(image.theme);
+      labelPick = IB_THEME_LABELS[themePick]?.[lang === "en" ? "en" : "es"] || themePick;
+      sessionStorage.setItem(storageKey, JSON.stringify({ theme: themePick, label: labelPick }));
+    }
+
+    // React 18+ batches these into a single render
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGeneralThemeLabel(labelPick);
+    setSubPhase("general");
+
+    // Inject transcript marker
+    voice.addMarker(`General Discussion — ${labelPick}`);
+
+    // Fetch new instructions and update the AI session
+    fetch("/api/realtime/instructions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        subPhase: "general",
+        generalTheme: themePick,
+        generalThemeLabel: labelPick,
+      }),
+    })
+      .then((res) => res.json())
+      .then(({ instructions }) => {
+        voice.updateSession({ instructions });
+        voice.triggerResponse(
+          `It has been about 5 minutes of follow-up discussion. Now smoothly transition the conversation to a new theme: ${labelPick}. Briefly acknowledge the previous discussion, then introduce the new theme naturally and ask your first question about it.`
+        );
+      })
+      .catch((err) => console.error("[VOICE] Failed to update for general discussion:", err));
+  }, [totalElapsed, sessionId, image.theme, lang, voice]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -94,12 +155,22 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-            <span className="text-sm font-medium text-purple-700">Conversation</span>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${
+            subPhase === "follow-up"
+              ? "bg-purple-50 border-purple-200"
+              : "bg-emerald-50 border-emerald-200"
+          }`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${
+              subPhase === "follow-up" ? "bg-purple-400" : "bg-emerald-400"
+            }`} />
+            <span className={`text-sm font-medium ${
+              subPhase === "follow-up" ? "text-purple-700" : "text-emerald-700"
+            }`}>
+              {subPhase === "follow-up" ? "Part 2: Follow-up" : "Part 3: General"}
+            </span>
           </div>
           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
-            {theme.label}
+            {subPhase === "general" && generalThemeLabel ? generalThemeLabel : theme.label}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -107,7 +178,7 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
             <p className={`text-xl font-mono font-semibold tabular-nums ${timerColor(totalElapsed)}`}>
               {formattedTime}
             </p>
-            <p className="text-xs text-gray-500">{timerZoneLabel(totalElapsed)}</p>
+            <p className="text-xs text-gray-500">{timerZoneLabel(totalElapsed, subPhase)}</p>
           </div>
         </div>
       </div>
@@ -124,15 +195,20 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Image sidebar */}
-        <div className="shrink-0 lg:w-64 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white">
-          <div className="p-3">
-            <div className="rounded-lg overflow-hidden border border-gray-200">
+        <div className="shrink-0 lg:w-80 lg:border-r border-b lg:border-b-0 border-gray-200 bg-white">
+          <div className="p-4">
+            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={image.url}
                 alt="Practice image"
-                className="w-full aspect-[4/3] object-cover"
+                className="w-full aspect-[4/3] object-cover max-h-48 lg:max-h-none"
               />
+            </div>
+            <div className="mt-2 flex justify-center">
+              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+                {theme.label}
+              </span>
             </div>
           </div>
         </div>
@@ -157,26 +233,41 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
 
               {/* Chat bubble transcript */}
               {voice.transcript
-                .filter((m) => m.role === "student" || m.role === "examiner")
-                .map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
-                  >
+                .filter((m) => m.role === "student" || m.role === "examiner" || m.role === "phase-transition")
+                .map((msg, i) => {
+                  if (msg.role === "phase-transition") {
+                    return (
+                      <div key={i} className="flex items-center gap-3 py-2">
+                        <div className="flex-1 h-px bg-emerald-200" />
+                        <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider whitespace-nowrap">
+                          {msg.content}
+                        </span>
+                        <div className="flex-1 h-px bg-emerald-200" />
+                      </div>
+                    );
+                  }
+
+                  return (
                     <div
-                      className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                        msg.role === "student"
-                          ? "bg-gray-200 text-gray-900 rounded-br-md"
-                          : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                      }`}
+                      key={i}
+                      className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
+                      style={{ animation: "fadeIn 0.2s ease-out" }}
                     >
-                      <p className="text-xs font-medium mb-1 opacity-60">
-                        {msg.role === "student" ? "You" : "Examiner"}
-                      </p>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      <div
+                        className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                          msg.role === "student"
+                            ? "bg-gray-100 text-gray-900 rounded-br-md shadow-sm"
+                            : "bg-indigo-50 text-indigo-900 rounded-bl-md border border-indigo-100"
+                        }`}
+                      >
+                        <p className="text-xs font-medium mb-1 opacity-60">
+                          {msg.role === "student" ? "You" : "Examiner"}
+                        </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
               <div ref={messagesEndRef} />
             </div>
@@ -190,7 +281,7 @@ export default function VoiceConversPhase({ image, voice, onComplete, onFallback
             onToggleMic={voice.toggleMic}
             formattedTime={formattedTime}
             timerColorClass={timerColor(totalElapsed)}
-            timerLabel={timerZoneLabel(totalElapsed)}
+            timerLabel={timerZoneLabel(totalElapsed, subPhase)}
             endLabel="End Conversation"
             canEnd={canEnd}
             onEnd={handleEnd}

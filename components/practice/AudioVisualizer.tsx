@@ -8,9 +8,9 @@ type Props = {
   isMicMuted: boolean;
 };
 
-const BAR_COUNT = 5;
+const BAR_COUNT = 12;
 const SMOOTHING = 0.8;
-const ZERO_LEVELS: number[] = [0, 0, 0, 0, 0];
+const ZERO_LEVELS: number[] = Array(BAR_COUNT).fill(0);
 
 function useAudioLevels(mediaStream: MediaStream | null, active: boolean) {
   const [levels, setLevels] = useState(ZERO_LEVELS);
@@ -69,39 +69,41 @@ export default function AudioVisualizer({ mediaStream, isAiSpeaking, isMicMuted 
   // Muted state
   if (isMicMuted) {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-100 rounded-xl">
-        <div className="flex items-end gap-0.5 h-8">
+      <div className="flex flex-col items-center justify-center py-6 bg-gray-100 rounded-2xl">
+        <div className="flex items-end justify-center gap-[3px] h-20">
           {ZERO_LEVELS.map((_, i) => (
             <div
               key={i}
-              className="w-1.5 bg-gray-300 rounded-full"
+              className="w-1.5 bg-gray-300 rounded-full opacity-50"
               style={{ height: "8px" }}
             />
           ))}
         </div>
-        <span className="text-sm text-gray-500 font-medium">Muted</span>
+        <span className="text-sm text-gray-500 font-medium mt-3">Muted</span>
       </div>
     );
   }
 
   // AI speaking state
   if (isAiSpeaking) {
-    const barHeights = [14, 20, 16, 22, 12];
+    const barPeaks = [16, 28, 22, 32, 18, 36, 24, 30, 20, 34, 14, 26];
     return (
-      <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 rounded-xl">
-        <div className="flex items-end gap-0.5 h-8">
-          {barHeights.map((h, i) => (
+      <div className="flex flex-col items-center justify-center py-6 bg-indigo-50 rounded-2xl">
+        <div className="flex items-end justify-center gap-[3px] h-20">
+          {barPeaks.map((peak, i) => (
             <div
               key={i}
-              className="w-1.5 bg-indigo-400 rounded-full animate-pulse"
+              className="w-1.5 bg-indigo-400 rounded-full"
               style={{
-                height: `${h}px`,
-                animationDelay: `${i * 100}ms`,
+                animation: "bar-wave 0.8s ease-in-out infinite",
+                animationDelay: `${i * 60}ms`,
+                // @ts-expect-error CSS custom property
+                "--bar-peak": `${peak}px`,
               }}
             />
           ))}
         </div>
-        <span className="text-sm text-indigo-600 font-medium">Examiner speaking...</span>
+        <span className="text-sm text-indigo-600 font-medium mt-3">Examiner speaking...</span>
       </div>
     );
   }
@@ -110,17 +112,21 @@ export default function AudioVisualizer({ mediaStream, isAiSpeaking, isMicMuted 
   const hasInput = levels.some((l) => l > 0.05);
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${hasInput ? "bg-green-50" : "bg-gray-50"}`}>
-      <div className="flex items-end gap-0.5 h-8">
+    <div
+      className={`flex flex-col items-center justify-center py-6 rounded-2xl transition-all ${
+        hasInput ? "bg-green-50 ring-2 ring-green-200/50" : "bg-gray-50"
+      }`}
+    >
+      <div className="flex items-end justify-center gap-[3px] h-20">
         {levels.map((level, i) => (
           <div
             key={i}
-            className={`w-1.5 rounded-full transition-all duration-75 ${hasInput ? "bg-green-500" : "bg-gray-300"}`}
-            style={{ height: `${Math.max(4, level * 32)}px` }}
+            className={`w-1.5 rounded-full transition-all duration-100 ${hasInput ? "bg-green-500" : "bg-gray-300"}`}
+            style={{ height: `${Math.max(4, level * 80)}px` }}
           />
         ))}
       </div>
-      <span className={`text-sm font-medium ${hasInput ? "text-green-600" : "text-gray-400"}`}>
+      <span className={`text-sm font-medium mt-3 ${hasInput ? "text-green-600" : "text-gray-400"}`}>
         {hasInput ? "Speaking..." : "Listening..."}
       </span>
     </div>

@@ -59,9 +59,9 @@ export function CriterionBars({ avgs }: { avgs: CriterionAvgs }) {
                   {avg}/{c.max}
                 </span>
               </div>
-              <div className={`h-2 rounded-full overflow-hidden ${barBgColor(avg, c.max)}`}>
+              <div className={`h-2.5 rounded-full overflow-hidden ${barBgColor(avg, c.max)}`}>
                 <div
-                  className={`h-full rounded-full transition-all ${barColor(avg, c.max)}`}
+                  className={`h-full rounded-full transition-all duration-500 ${barColor(avg, c.max)}`}
                   style={{ width: `${Math.min(pct, 100)}%` }}
                 />
               </div>
@@ -79,9 +79,16 @@ export function ScoreTrend({ scores }: { scores: ScoreData[] }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
-        Score Trend
-      </h3>
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Score Trend
+        </h3>
+        {recent.length > 0 && (
+          <span className="text-sm font-semibold text-indigo-600">
+            {recent[recent.length - 1].total}/30
+          </span>
+        )}
+      </div>
       <ScoreTrendChart data={recent} height={180} />
     </div>
   );

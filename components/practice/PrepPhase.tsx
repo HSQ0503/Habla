@@ -28,7 +28,7 @@ export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
           <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
           <span className="text-sm font-medium text-yellow-700">Preparation</span>
         </div>
-        <div className="text-right">
+        <div className="text-right px-4 py-2 rounded-xl bg-gray-50 border border-gray-100">
           <p className="text-3xl font-mono font-semibold text-gray-900 tabular-nums">
             {formattedTime}
           </p>
@@ -38,7 +38,7 @@ export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Image */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image.url}
@@ -57,7 +57,7 @@ export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Jot down your ideas and key vocabulary here..."
-            className="flex-1 min-h-[300px] px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
+            className="flex-1 min-h-[300px] px-3.5 py-2.5 bg-gray-50/50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 focus:bg-white transition-colors resize-none"
           />
           {voiceMode && (
             <p className="text-xs text-gray-400 mt-2">
@@ -72,7 +72,7 @@ export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
         <button
           onClick={onAdvance}
           disabled={!canAdvance}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-sm hover:shadow disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           I&apos;m Ready — Start Presentation
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

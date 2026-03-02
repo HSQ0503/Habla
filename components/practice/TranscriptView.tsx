@@ -49,39 +49,53 @@ export default function TranscriptView({ transcript, onBack }: Props) {
             Conversation
           </h2>
           <div className="space-y-4">
-            {conversation.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
-              >
+            {conversation.map((msg, i) => {
+              if (msg.role === "phase-transition") {
+                return (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <div className="flex-1 h-px bg-emerald-200" />
+                    <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider whitespace-nowrap">
+                      {msg.content}
+                    </span>
+                    <div className="flex-1 h-px bg-emerald-200" />
+                  </div>
+                );
+              }
+
+              return (
                 <div
-                  className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                    msg.role === "student"
-                      ? "bg-gray-100 text-gray-900 rounded-br-md"
-                      : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                  }`}
+                  key={i}
+                  className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-xs font-medium opacity-60">
-                      {msg.role === "student" ? "You" : "Examiner"}
-                    </p>
-                    {msg.timestamp && (
-                      <p className="text-xs opacity-40">
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
+                  <div
+                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                      msg.role === "student"
+                        ? "bg-gray-100 text-gray-900 rounded-br-md"
+                        : "bg-indigo-50 text-indigo-900 rounded-bl-md"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-xs font-medium opacity-60">
+                        {msg.role === "student" ? "You" : "Examiner"}
                       </p>
+                      {msg.timestamp && (
+                        <p className="text-xs opacity-40">
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === "student" && msg.wordCount && (
+                      <p className="text-xs opacity-40 mt-1">{msg.wordCount} words</p>
                     )}
                   </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                  {msg.role === "student" && msg.wordCount && (
-                    <p className="text-xs opacity-40 mt-1">{msg.wordCount} words</p>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
 import { themeColors } from "@/lib/theme-colors";
-import { MIN_CONVERSE_SECONDS, WARN_CONVERSE_SECONDS, MAX_CONVERSE_SECONDS, TEST_MODE } from "@/lib/test-config";
+import { pickRandomTheme, IB_THEME_LABELS, type IBTheme } from "@/lib/ib-themes";
+import { MIN_CONVERSE_SECONDS, WARN_CONVERSE_SECONDS, MAX_CONVERSE_SECONDS, FOLLOWUP_TARGET_SECONDS } from "@/lib/test-config";
 
-type ChatMessage = {
-  role: "student" | "examiner";
+type DisplayMessage = {
+  role: "student" | "examiner" | "phase-transition";
   content: string;
 };
 
@@ -16,10 +17,10 @@ type Props = {
     url: string;
     theme: string;
   };
+  language?: string;
   onComplete: () => void;
 };
 
-// Timer constants imported from test-config
 const WARN_SECONDS = WARN_CONVERSE_SECONDS;
 const MAX_SECONDS = MAX_CONVERSE_SECONDS;
 
@@ -30,15 +31,18 @@ function timerColor(elapsed: number) {
   return "text-red-600";
 }
 
-function timerZoneLabel(elapsed: number) {
+function timerZoneLabel(elapsed: number, subPhase: "follow-up" | "general") {
   const minutes = elapsed / 60;
-  if (minutes < 8) return "Keep conversing";
-  if (minutes < 10) return "Ideal range (8–10 min)";
+  if (subPhase === "follow-up") {
+    if (minutes < 4) return "Part 2: Follow-up Discussion";
+    return "Transitioning soon...";
+  }
+  if (minutes < 10) return "Part 3: General Discussion";
   return "Time to wrap up";
 }
 
-export default function ConversePhase({ sessionId, image, onComplete }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function ConversePhase({ sessionId, image, language, onComplete }: Props) {
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -47,11 +51,19 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
   const canEnd = totalElapsed >= MIN_CONVERSE_SECONDS;
   const showWarning = totalElapsed >= WARN_SECONDS && totalElapsed < MAX_SECONDS;
 
+  // Sub-phase tracking
+  const [subPhase, setSubPhase] = useState<"follow-up" | "general">("follow-up");
+  const [generalTheme, setGeneralTheme] = useState<string | null>(null);
+  const [generalThemeLabel, setGeneralThemeLabel] = useState<string | null>(null);
+  const transitioned = useRef(false);
+
   const theme = themeColors[image.theme] || {
     bg: "bg-gray-100",
     text: "text-gray-700",
     label: image.theme,
   };
+
+  const lang = language || "es";
 
   // Auto-end at max time
   useEffect(() => {
@@ -60,13 +72,44 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
     }
   }, [totalElapsed, onComplete]);
 
+  // Timer-based transition from follow-up to general discussion
+  useEffect(() => {
+    if (transitioned.current || totalElapsed < FOLLOWUP_TARGET_SECONDS) return;
+    transitioned.current = true;
+
+    const storageKey = `habla-general-theme-${sessionId}`;
+    const stored = sessionStorage.getItem(storageKey);
+    let themePick: IBTheme;
+    let labelPick: string;
+
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      themePick = parsed.theme;
+      labelPick = parsed.label;
+    } else {
+      themePick = pickRandomTheme(image.theme);
+      labelPick = IB_THEME_LABELS[themePick]?.[lang === "en" ? "en" : "es"] || themePick;
+      sessionStorage.setItem(storageKey, JSON.stringify({ theme: themePick, label: labelPick }));
+    }
+
+    // React 18+ batches these into a single render
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGeneralTheme(themePick);
+    setGeneralThemeLabel(labelPick);
+    setSubPhase("general");
+    setMessages((prev) => [
+      ...prev,
+      { role: "phase-transition", content: `General Discussion — ${labelPick}` },
+    ]);
+  }, [totalElapsed, sessionId, image.theme, lang]);
+
   // Get initial examiner question
   useEffect(() => {
     async function init() {
       const res = await fetch(`/api/sessions/${sessionId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ subPhase: "follow-up" }),
       });
       const data = await res.json();
       setMessages([{ role: "examiner", content: data.message }]);
@@ -91,7 +134,12 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
     const res = await fetch(`/api/sessions/${sessionId}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({
+        message: text,
+        subPhase,
+        generalTheme,
+        generalThemeLabel,
+      }),
     });
     const data = await res.json();
     setMessages((prev) => [...prev, { role: "examiner", content: data.message }]);
@@ -110,12 +158,22 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-            <span className="text-sm font-medium text-purple-700">Conversation</span>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${
+            subPhase === "follow-up"
+              ? "bg-purple-50 border-purple-200"
+              : "bg-emerald-50 border-emerald-200"
+          }`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${
+              subPhase === "follow-up" ? "bg-purple-400" : "bg-emerald-400"
+            }`} />
+            <span className={`text-sm font-medium ${
+              subPhase === "follow-up" ? "text-purple-700" : "text-emerald-700"
+            }`}>
+              {subPhase === "follow-up" ? "Part 2: Follow-up" : "Part 3: General"}
+            </span>
           </div>
           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
-            {theme.label}
+            {subPhase === "general" && generalThemeLabel ? generalThemeLabel : theme.label}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -123,7 +181,7 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
             <p className={`text-xl font-mono font-semibold tabular-nums ${timerColor(totalElapsed)}`}>
               {formattedTime}
             </p>
-            <p className="text-xs text-gray-500">{timerZoneLabel(totalElapsed)}</p>
+            <p className="text-xs text-gray-500">{timerZoneLabel(totalElapsed, subPhase)}</p>
           </div>
           <button
             onClick={onComplete}
@@ -178,25 +236,39 @@ export default function ConversePhase({ sessionId, image, onComplete }: Props) {
                 </div>
               )}
 
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
-                >
+              {messages.map((msg, i) => {
+                if (msg.role === "phase-transition") {
+                  return (
+                    <div key={i} className="flex items-center gap-3 py-2">
+                      <div className="flex-1 h-px bg-emerald-200" />
+                      <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider whitespace-nowrap">
+                        {msg.content}
+                      </span>
+                      <div className="flex-1 h-px bg-emerald-200" />
+                    </div>
+                  );
+                }
+
+                return (
                   <div
-                    className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                      msg.role === "student"
-                        ? "bg-gray-200 text-gray-900 rounded-br-md"
-                        : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                    }`}
+                    key={i}
+                    className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}
                   >
-                    <p className="text-xs font-medium mb-1 opacity-60">
-                      {msg.role === "student" ? "You" : "Examiner"}
-                    </p>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <div
+                      className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                        msg.role === "student"
+                          ? "bg-gray-200 text-gray-900 rounded-br-md"
+                          : "bg-indigo-50 text-indigo-900 rounded-bl-md"
+                      }`}
+                    >
+                      <p className="text-xs font-medium mb-1 opacity-60">
+                        {msg.role === "student" ? "You" : "Examiner"}
+                      </p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {sending && (
                 <div className="flex justify-start">
