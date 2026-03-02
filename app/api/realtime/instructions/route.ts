@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     practiceSession.image.talkingPoints,
     presentationEntry?.content,
     (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null,
-    { mode: "voice" }
+    { mode: "voice", language: practiceSession.language }
   );
 
   console.log(`[REALTIME:INSTRUCTIONS] Built conversation prompt (${instructions.length} chars) for session=${sessionId}`);

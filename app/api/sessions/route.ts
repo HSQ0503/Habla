@@ -10,8 +10,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { imageId } = await request.json();
-  console.log(`[SESSION:CREATE] User ${session.user.id} creating session with imageId=${imageId}`);
+  const body = await request.json();
+  const { imageId, language: rawLang } = body;
+  const language = rawLang === "en" ? "en" : "es";
+  console.log(`[SESSION:CREATE] User ${session.user.id} creating session with imageId=${imageId}, language=${language}`);
 
   if (!imageId) {
     console.log("[SESSION:CREATE] Missing imageId");
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
     data: {
       userId: session.user.id,
       imageId,
+      language,
       status: "PREPARING",
       prepStartedAt: new Date(),
       transcript: [],

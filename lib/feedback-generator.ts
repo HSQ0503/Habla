@@ -7,6 +7,7 @@ import { analyzeSpeakingPace } from "@/lib/analysis/speaking-pace";
 
 type SessionWithImage = {
   transcript: unknown;
+  language?: string;
   image: {
     url: string;
     theme: string;
@@ -33,10 +34,25 @@ export async function generateFeedback(
 
   // Extract presentation and conversation from transcript
   const presentationEntry = transcript.find((m) => m.role === "presentation");
-  const presentationText = presentationEntry?.content || "";
   const conversationMessages = transcript.filter(
     (m) => m.role === "student" || m.role === "examiner"
   );
+
+  // Fallback: if no "presentation" entry, use student entries before the first examiner message
+  let presentationText = presentationEntry?.content || "";
+  if (!presentationText) {
+    const firstExaminerIdx = transcript.findIndex((m) => m.role === "examiner");
+    const earlyStudentEntries = transcript
+      .filter((m, i) => m.role === "student" && (firstExaminerIdx === -1 || i < firstExaminerIdx))
+      .map((m) => m.content);
+    if (earlyStudentEntries.length > 0) {
+      presentationText = earlyStudentEntries.join(" ");
+      console.warn(`[FEEDBACK] No "presentation" entry found — using ${earlyStudentEntries.length} early student entries as fallback (${presentationText.split(/\s+/).filter(Boolean).length} words)`);
+    } else {
+      console.warn("[FEEDBACK] No presentation text found in transcript");
+    }
+  }
+
   const studentMessages = conversationMessages
     .filter((m) => m.role === "student")
     .map((m) => m.content);
@@ -62,7 +78,7 @@ export async function generateFeedback(
 
   // Run all analyses in parallel
   const [ibGrades, tenses, depth, vocabulary, pace] = await Promise.all([
-    gradeSession(transcript, presentationText, session.image.aiAnalysis, timestamps),
+    gradeSession(transcript, presentationText, session.image.aiAnalysis, timestamps, session.language || "es"),
     Promise.resolve(analyzeTenses(allStudentText)),
     Promise.resolve(analyzeResponseDepth(studentMessages)),
     Promise.resolve(analyzeVocabulary(allStudentText)),

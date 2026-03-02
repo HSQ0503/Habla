@@ -23,7 +23,8 @@ function buildGradingPrompt(
   presentationText: string,
   conversationMessages: ChatMessage[],
   imageAnalysis: unknown,
-  sessionTimestamps: SessionTimestamps
+  sessionTimestamps: SessionTimestamps,
+  language: string = "es"
 ): string {
   const presentStart = toDate(sessionTimestamps.presentStartedAt);
   const converseStart = toDate(sessionTimestamps.converseStartedAt);
@@ -52,7 +53,11 @@ function buildGradingPrompt(
       ? imageAnalysis
       : JSON.stringify(imageAnalysis, null, 2);
 
-  return `You are a senior IB Spanish B examiner with 15 years of experience grading Individual Oral assessments. You will grade a student's IO performance based on their complete transcript.
+  const langNote = language === "en"
+    ? `You are a senior IB examiner with 15 years of experience grading Individual Oral practice sessions. This session was conducted in English as an informal practice run. Grade the content, structure, and interaction quality the same way as a Spanish B IO, but evaluate English language use instead of Spanish.`
+    : `You are a senior IB Spanish B examiner with 15 years of experience grading Individual Oral assessments.`;
+
+  return `${langNote} You will grade a student's IO performance based on their complete transcript.
 
 Grade STRICTLY according to the official IB rubric descriptors below. Do not inflate scores. Be fair, consistent, and evidence-based.
 
@@ -224,7 +229,8 @@ export async function gradeSession(
   transcript: ChatMessage[],
   presentationText: string,
   imageAnalysis: unknown,
-  sessionTimestamps: SessionTimestamps
+  sessionTimestamps: SessionTimestamps,
+  language: string = "es"
 ): Promise<IBGrades> {
   console.log("[IB-GRADER] Starting IB grading");
 
@@ -238,7 +244,8 @@ export async function gradeSession(
     presentationText,
     conversationMessages,
     imageAnalysis,
-    sessionTimestamps
+    sessionTimestamps,
+    language
   );
 
   let grades = await callGPT(prompt);

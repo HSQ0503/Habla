@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
 import { themeColors } from "@/lib/theme-colors";
+import { MIN_CONVERSE_SECONDS, WARN_CONVERSE_SECONDS, MAX_CONVERSE_SECONDS, TEST_MODE } from "@/lib/test-config";
 import AudioVisualizer from "./AudioVisualizer";
 import SpeakingIndicator from "./SpeakingIndicator";
 import VoiceControls from "./VoiceControls";
@@ -34,9 +35,9 @@ type Props = {
   onFallbackToText: () => void;
 };
 
-const MIN_CONVERSE_SECONDS = 5 * 60;
-const WARN_SECONDS = 10 * 60;
-const MAX_SECONDS = 12 * 60;
+// Timer constants imported from test-config
+const WARN_SECONDS = WARN_CONVERSE_SECONDS;
+const MAX_SECONDS = MAX_CONVERSE_SECONDS;
 
 function timerColor(elapsed: number) {
   const minutes = elapsed / 60;

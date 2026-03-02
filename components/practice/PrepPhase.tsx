@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
+import { PREP_SECONDS, MIN_PREP_SECONDS, TEST_MODE } from "@/lib/test-config";
 
 type Props = {
   image: {
@@ -12,8 +13,7 @@ type Props = {
   voiceMode?: boolean;
 };
 
-const PREP_SECONDS = 15 * 60; // 15 minutes
-const MIN_PREP_SECONDS = 60; // 1 minute minimum
+// Timer constants imported from test-config
 
 export default function PrepPhase({ image, onAdvance, voiceMode }: Props) {
   const [notes, setNotes] = useState("");

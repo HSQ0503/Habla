@@ -74,7 +74,8 @@ export async function POST(
     practiceSession.image.theme,
     practiceSession.image.talkingPoints,
     presentationText,
-    (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null
+    (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null,
+    { language: practiceSession.language }
   );
 
   const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [

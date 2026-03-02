@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   let instructions: string;
-  let turnDetection: { type: string; threshold: number; prefix_padding_ms: number; silence_duration_ms: number };
+  let turnDetection: { type: string; threshold: number; prefix_padding_ms: number; silence_duration_ms: number; create_response: boolean };
 
   if (practiceSession.status === "PRESENTING") {
     // Minimal prompt — AI must NOT speak during presentation
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       threshold: 0.9,
       prefix_padding_ms: 300,
       silence_duration_ms: 5000,
+      create_response: false,
     };
   } else {
     // CONVERSING — full examiner prompt
@@ -60,13 +61,14 @@ export async function POST(request: Request) {
       practiceSession.image.talkingPoints,
       presentationEntry?.content,
       (practiceSession.image as Record<string, unknown>).aiAnalysis as AiAnalysis | null,
-      { mode: "voice" }
+      { mode: "voice", language: practiceSession.language }
     );
     turnDetection = {
       type: "server_vad",
       threshold: 0.5,
       prefix_padding_ms: 300,
       silence_duration_ms: 800,
+      create_response: true,
     };
   }
 

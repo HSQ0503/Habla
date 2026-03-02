@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
 import { themeColors } from "@/lib/theme-colors";
+import { MIN_PRESENT_SECONDS, TEST_MODE } from "@/lib/test-config";
 
 type Props = {
   image: {
@@ -12,7 +13,7 @@ type Props = {
   onAdvance: (presentationText: string) => void;
 };
 
-const MIN_PRESENT_SECONDS = 60; // 1 minute minimum
+// Timer constants imported from test-config
 
 function timerColor(elapsed: number) {
   const minutes = elapsed / 60;

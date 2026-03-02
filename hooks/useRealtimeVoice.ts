@@ -16,6 +16,7 @@ type UseRealtimeVoiceReturn = {
   getMediaStream: () => MediaStream | null;
   updateSession: (config: Partial<SessionConfig>) => void;
   triggerResponse: (text?: string) => void;
+  clearTranscript: () => void;
 };
 
 export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
@@ -147,6 +148,10 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     clientRef.current?.triggerResponse(text);
   }, []);
 
+  const clearTranscript = useCallback(() => {
+    clientRef.current?.clearTranscript();
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -167,5 +172,6 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     getMediaStream,
     updateSession,
     triggerResponse,
+    clearTranscript,
   };
 }

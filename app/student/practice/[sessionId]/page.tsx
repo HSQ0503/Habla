@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { shouldUseVoice } from "@/lib/voice-config";
 import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
+import { TEST_MODE } from "@/lib/test-config";
 import PrepPhase from "@/components/practice/PrepPhase";
 import PresentPhase from "@/components/practice/PresentPhase";
 import ConversePhase from "@/components/practice/ConversePhase";
@@ -91,7 +92,10 @@ export default function SessionPage() {
     });
     const { instructions } = await res.json();
 
-    // 3. Update AI instructions and turn detection via data channel
+    // 3. Clear presentation-phase transcript so those entries don't appear as conversation messages
+    voice.clearTranscript();
+
+    // 4. Update AI instructions and turn detection via data channel
     voice.updateSession({
       instructions,
       turnDetection: {
@@ -99,15 +103,16 @@ export default function SessionPage() {
         threshold: 0.5,
         prefix_padding_ms: 300,
         silence_duration_ms: 800,
+        create_response: true,
       },
     });
 
-    // 4. Trigger first examiner question
+    // 5. Trigger first examiner question
     voice.triggerResponse(
       "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
     );
 
-    // 5. Release display lock
+    // 6. Release display lock
     setVoicePhaseOverride(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
@@ -200,6 +205,11 @@ export default function SessionPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {TEST_MODE && (
+        <div className="sticky top-0 z-50 bg-orange-500 text-white text-center text-xs font-medium py-1">
+          TEST MODE — Reduced timers active
+        </div>
+      )}
       {/* PREPARING phase */}
       {effectivePhase === "PREPARING" && (
         <>

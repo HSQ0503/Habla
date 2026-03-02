@@ -2,14 +2,17 @@ import type { ChatMessage } from "@/lib/types";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "failed";
 
+export type TurnDetection = {
+  type: string;
+  threshold: number;
+  prefix_padding_ms: number;
+  silence_duration_ms: number;
+  create_response: boolean;
+};
+
 export type SessionConfig = {
   instructions: string;
-  turnDetection: {
-    type: string;
-    threshold: number;
-    prefix_padding_ms: number;
-    silence_duration_ms: number;
-  };
+  turnDetection: TurnDetection;
 };
 
 export type RealtimeCallbacks = {
@@ -58,9 +61,11 @@ export class RealtimeClient {
         session: {
           type: "realtime",
           instructions: config.instructions,
-          turn_detection: config.turnDetection,
-          input_audio_transcription: {
-            model: "gpt-4o-mini-transcription",
+          audio: {
+            input: {
+              transcription: { model: "gpt-4o-mini-transcribe" },
+              turn_detection: config.turnDetection,
+            },
           },
         },
       }));
@@ -180,7 +185,9 @@ export class RealtimeClient {
         session.instructions = config.instructions;
       }
       if (config.turnDetection !== undefined) {
-        session.turn_detection = config.turnDetection;
+        session.audio = {
+          input: { turn_detection: config.turnDetection },
+        };
       }
       this.dc.send(JSON.stringify({ type: "session.update", session }));
     }
@@ -214,6 +221,11 @@ export class RealtimeClient {
 
   getTranscript(): ChatMessage[] {
     return [...this.transcript];
+  }
+
+  clearTranscript(): void {
+    this.transcript = [];
+    this.callbacks.onTranscriptUpdate([]);
   }
 
   disconnect(): void {

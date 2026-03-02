@@ -41,6 +41,7 @@ export default function PracticePage() {
   const [selectedImage, setSelectedImage] = useState<ImageRecord | null>(null);
   const [loadingImages, setLoadingImages] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [language, setLanguage] = useState<"es" | "en">("es");
 
   // Fetch class info for library toggle
   useEffect(() => {
@@ -95,7 +96,7 @@ export default function PracticePage() {
     const res = await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageId: selectedImage.id }),
+      body: JSON.stringify({ imageId: selectedImage.id, language }),
     });
     const sess = await res.json();
     router.push(`/student/practice/${sess.id}`);
@@ -343,6 +344,40 @@ export default function PracticePage() {
               <p>2. <strong>Presentation</strong> — 3–4 minutes to present your analysis</p>
               <p>3. <strong>Conversation</strong> — 8–10 minutes discussing with the examiner</p>
             </div>
+          </div>
+
+          {/* Language toggle */}
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Exam Language
+            </label>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+              <button
+                onClick={() => setLanguage("es")}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  language === "es"
+                    ? "bg-indigo-600 text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Español
+              </button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  language === "en"
+                    ? "bg-indigo-600 text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                English (Practice)
+              </button>
+            </div>
+            {language === "en" && (
+              <p className="text-xs text-amber-600 mt-1.5">
+                English mode is for familiarization only. Official IB exams are conducted in Spanish.
+              </p>
+            )}
           </div>
 
           <button

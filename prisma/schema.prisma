@@ -99,6 +99,7 @@ model Session {
   userId           String
   imageId          String
   status           SessionStatus
+  language         String        @default("es")
   transcript       Json?
   feedback         Json?
   scoreA           Float?

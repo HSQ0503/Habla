@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSessionTimer } from "@/hooks/useSessionTimer";
 import { themeColors } from "@/lib/theme-colors";
+import { MIN_PRESENT_SECONDS, TEST_MODE } from "@/lib/test-config";
 import AudioVisualizer from "./AudioVisualizer";
 import VoiceControls from "./VoiceControls";
 import type { ConnectionState } from "@/lib/realtime-client";
@@ -32,7 +33,7 @@ type Props = {
   onAdvance: (presentationText: string) => Promise<void>;
 };
 
-const MIN_PRESENT_SECONDS = 60;
+// Timer constants imported from test-config
 
 function timerColor(elapsed: number) {
   const minutes = elapsed / 60;
