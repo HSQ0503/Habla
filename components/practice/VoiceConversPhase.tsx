@@ -148,7 +148,8 @@ export default function VoiceConversPhase({ sessionId, image, language, voice, o
     onComplete();
   }
 
-  const showErrorOverlay = voice.connectionState === "failed" || voice.error;
+  // Only show error overlay for genuine connection failures, not transient API errors
+  const showErrorOverlay = voice.connectionState === "failed";
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -311,7 +312,7 @@ export default function VoiceConversPhase({ sessionId, image, language, voice, o
                 Switch to Text Mode
               </button>
               <button
-                onClick={onComplete}
+                onClick={handleEnd}
                 className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
                 End Session

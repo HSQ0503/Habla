@@ -15,7 +15,11 @@ const timestampField: Partial<Record<SessionStatus, string>> = {
   COMPLETED: "completedAt",
 };
 
-export async function advanceSession(sessionId: string, targetStatus: SessionStatus) {
+export async function advanceSession(
+  sessionId: string,
+  targetStatus: SessionStatus,
+  extraData?: Record<string, unknown>
+) {
   const session = await db.session.findUnique({ where: { id: sessionId } });
 
   if (!session) {
@@ -34,7 +38,7 @@ export async function advanceSession(sessionId: string, targetStatus: SessionSta
   console.log(`[STATE] Transitioning session=${sessionId}: ${session.status} → ${targetStatus}`);
 
   const timestamp = timestampField[targetStatus];
-  const data: Record<string, unknown> = { status: targetStatus };
+  const data: Record<string, unknown> = { status: targetStatus, ...extraData };
   if (timestamp) {
     data[timestamp] = new Date();
   }

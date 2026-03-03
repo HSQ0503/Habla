@@ -16,9 +16,13 @@ type UseRealtimeVoiceReturn = {
   getMediaStream: () => MediaStream | null;
   updateSession: (config: Partial<SessionConfig>) => void;
   triggerResponse: (text?: string) => void;
+  getTranscript: () => ChatMessage[];
   clearTranscript: () => void;
   setPresentationMode: (enabled: boolean) => void;
   addMarker: (content: string) => void;
+  clearError: () => void;
+  pauseAutoSave: () => void;
+  resumeAutoSave: () => void;
 };
 
 export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
@@ -30,6 +34,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
   const clientRef = useRef<RealtimeClient | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptRef = useRef<ChatMessage[]>([]);
+  const autoSavePausedRef = useRef(false);
 
   // Keep ref in sync with state for use in callbacks
   useEffect(() => {
@@ -55,6 +60,7 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
   useEffect(() => {
     if (connectionState === "connected") {
       saveTimerRef.current = setInterval(() => {
+        if (autoSavePausedRef.current) return;
         const entries = clientRef.current?.getTranscript() || [];
         if (entries.length > 0) {
           saveTranscript(entries);
@@ -162,6 +168,10 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     clientRef.current?.triggerResponse(text);
   }, []);
 
+  const getTranscript = useCallback((): ChatMessage[] => {
+    return clientRef.current?.getTranscript() || [];
+  }, []);
+
   const clearTranscript = useCallback(() => {
     clientRef.current?.clearTranscript();
   }, []);
@@ -174,6 +184,18 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
 
   const addMarker = useCallback((content: string) => {
     clientRef.current?.addMarker(content);
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const pauseAutoSave = useCallback(() => {
+    autoSavePausedRef.current = true;
+  }, []);
+
+  const resumeAutoSave = useCallback(() => {
+    autoSavePausedRef.current = false;
   }, []);
 
   // Cleanup on unmount
@@ -196,8 +218,12 @@ export function useRealtimeVoice(sessionId: string): UseRealtimeVoiceReturn {
     getMediaStream,
     updateSession,
     triggerResponse,
+    getTranscript,
     clearTranscript,
     setPresentationMode,
     addMarker,
+    clearError,
+    pauseAutoSave,
+    resumeAutoSave,
   };
 }

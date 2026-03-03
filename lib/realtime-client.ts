@@ -174,12 +174,17 @@ export class RealtimeClient {
         break;
 
       // Errors
-      case "error":
+      case "error": {
+        const msg = (event.error as { message?: string })?.message || "Realtime API error";
+        // Ignore benign cancellation errors (e.g. triggerResponse when no active response)
+        if (msg.toLowerCase().includes("cancellation failed")) {
+          console.warn("[REALTIME] Ignoring benign error:", msg);
+          break;
+        }
         console.error("[REALTIME] Error event:", event);
-        this.callbacks.onError(
-          new Error((event.error as { message?: string })?.message || "Realtime API error")
-        );
+        this.callbacks.onError(new Error(msg));
         break;
+      }
 
       // Log unhandled events for discovery during development
       default:
@@ -208,8 +213,13 @@ export class RealtimeClient {
         session.instructions = config.instructions;
       }
       if (config.turnDetection !== undefined) {
+        // Always include transcription config — sending audio.input without it
+        // replaces the entire object and disables input transcription
         session.audio = {
-          input: { turn_detection: config.turnDetection ?? null },
+          input: {
+            transcription: { model: "gpt-4o-mini-transcription" },
+            turn_detection: config.turnDetection ?? null,
+          },
         };
       }
       this.dc.send(JSON.stringify({ type: "session.update", session }));

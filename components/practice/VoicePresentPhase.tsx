@@ -21,6 +21,7 @@ type VoiceState = {
   getMediaStream: () => MediaStream | null;
   updateSession: (config: Record<string, unknown>) => void;
   triggerResponse: (text?: string) => void;
+  getTranscript: () => ChatMessage[];
 };
 
 type Props = {
@@ -72,7 +73,13 @@ export default function VoicePresentPhase({ image, voice, onAdvance }: Props) {
   async function handleEnd() {
     if (ending) return;
     setEnding(true);
-    const presentationText = studentEntries.map((m) => m.content).join(" ");
+
+    // Wait briefly for pending transcriptions to arrive from OpenAI
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Read latest transcript directly from client (not stale React state)
+    const entries = voice.getTranscript().filter((m) => m.role === "student");
+    const presentationText = entries.map((m) => m.content).join(" ");
     await onAdvance(presentationText);
   }
 

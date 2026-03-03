@@ -82,8 +82,12 @@ export default function SessionPage() {
   const handleVoicePresentAdvance = useCallback(async (presentationText: string) => {
     setVoicePhaseOverride("PRESENTING");
 
-    // 1. Save voice transcript before advancing (ensures presentation audio transcription is persisted)
-    const voiceEntries = voice.transcript.filter((m) => m.role === "student");
+    // Pause auto-save to prevent race conditions during the transition
+    voice.pauseAutoSave();
+
+    // 1. Save voice transcript before advancing — use getTranscript() (ref-based, always fresh)
+    //    instead of voice.transcript (React state, may be stale in this closure)
+    const voiceEntries = voice.getTranscript().filter((m) => m.role === "student");
     if (voiceEntries.length > 0) {
       await fetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
@@ -92,7 +96,7 @@ export default function SessionPage() {
       });
     }
 
-    // 2. Advance server state (saves presentation text to DB)
+    // 2. Advance server state (saves presentation text to DB atomically)
     await advanceSession("CONVERSING", presentationText);
 
     // 3. Fetch conversation instructions (server builds prompt with presentation text + aiAnalysis)
@@ -106,6 +110,7 @@ export default function SessionPage() {
       console.error("[SESSION] Failed to fetch conversation instructions");
       setError("Failed to load conversation instructions. Please try again.");
       setVoicePhaseOverride(null);
+      voice.resumeAutoSave();
       return;
     }
 
@@ -117,7 +122,10 @@ export default function SessionPage() {
     // 5. Clear presentation-phase transcript so those entries don't appear as conversation messages
     voice.clearTranscript();
 
-    // 6. Update AI instructions and enable turn detection for conversation
+    // 6. Resume auto-save now that transcript is cleared and presentation text is safely in DB
+    voice.resumeAutoSave();
+
+    // 7. Update AI instructions and enable turn detection for conversation
     voice.updateSession({
       instructions,
       turnDetection: {
@@ -128,15 +136,18 @@ export default function SessionPage() {
       },
     });
 
-    // 7. Trigger first examiner question
+    // 8. Trigger first examiner question
     voice.triggerResponse(
       "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
     );
 
-    // 8. Release display lock
+    // 9. Clear any transient errors from session reconfiguration before showing conversation UI
+    voice.clearError();
+
+    // 10. Release display lock
     setVoicePhaseOverride(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, voice.transcript]);
+  }, [sessionId]);
 
   // Voice conversation completion
   const handleVoiceComplete = useCallback(async () => {

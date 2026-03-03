@@ -94,25 +94,26 @@ export async function PATCH(
   console.log(`[SESSION:PATCH] User ${session.user.id} advancing session=${id} to ${status}`);
 
   try {
-    const updated = await advanceSession(id, status);
-
-    // Save presentation text into transcript when moving to CONVERSING
+    // Build presentation text into the transcript atomically with the state transition
+    // to prevent race conditions with concurrent auto-save writes
+    let extraData: Record<string, unknown> | undefined;
     if (status === "CONVERSING" && presentationText) {
       const wordCount = presentationText.split(/\s+/).filter(Boolean).length;
-      console.log(`[SESSION:PATCH] Saving presentation text (${wordCount} words) to session=${id}`);
-      const transcript =
-        (updated.transcript as ChatMessage[]) || [];
-      transcript.unshift({
-        role: "presentation" as const,
-        content: presentationText,
-        timestamp: new Date().toISOString(),
-        wordCount,
-      });
-      await db.session.update({
-        where: { id },
-        data: { transcript },
-      });
+      console.log(`[SESSION:PATCH] Saving presentation text (${wordCount} words) atomically with advance for session=${id}`);
+      const existing = (practiceSession.transcript as ChatMessage[]) || [];
+      const presentationTranscript = [
+        {
+          role: "presentation" as const,
+          content: presentationText,
+          timestamp: new Date().toISOString(),
+          wordCount,
+        },
+        ...existing,
+      ];
+      extraData = { transcript: presentationTranscript };
     }
+
+    const updated = await advanceSession(id, status, extraData);
 
     // Save final voice transcript before analysis
     if (status === "COMPLETED" && transcript && Array.isArray(transcript)) {
