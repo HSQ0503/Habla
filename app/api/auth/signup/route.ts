@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { signupLimiter, rateLimitResponse, getClientIP } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const rl = signupLimiter(getClientIP(request));
+  if (rl.limited) return rateLimitResponse(rl.retryAfter);
+
   try {
     const body = await request.json();
     const { email, password, name, role, classCode } = body;

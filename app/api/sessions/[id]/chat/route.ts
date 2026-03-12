@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildSystemPrompt } from "@/lib/examiner-prompt";
+import { chatLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import OpenAI from "openai";
 import type { ChatMessage, AiAnalysis, ConversationMetrics } from "@/lib/types";
 
@@ -16,6 +17,9 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = chatLimiter(session.user.id);
+  if (rl.limited) return rateLimitResponse(rl.retryAfter);
 
   const { id } = await params;
   const body = await request.json();

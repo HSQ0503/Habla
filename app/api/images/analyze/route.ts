@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { analyzeLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import OpenAI from "openai";
 
 const openai = new OpenAI();
@@ -39,6 +40,9 @@ export async function POST(request: Request) {
   if (!session || session.user.role !== "TEACHER") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = analyzeLimiter(session.user.id);
+  if (rl.limited) return rateLimitResponse(rl.retryAfter);
 
   const body = await request.json();
   const { imageUrl } = body;

@@ -37,6 +37,10 @@ export class RealtimeClient {
 
   set presentationMode(value: boolean) {
     this._presentationMode = value;
+    // Mute/unmute AI audio output so no sound leaks before response.cancel arrives
+    if (this.audioElement) {
+      this.audioElement.muted = value;
+    }
   }
 
   async connect(ephemeralToken: string, config: SessionConfig): Promise<void> {
@@ -64,12 +68,8 @@ export class RealtimeClient {
       const sessionUpdate: Record<string, unknown> = {
         type: "realtime",
         instructions: config.instructions,
-        audio: {
-          input: {
-            transcription: { model: "gpt-4o-mini-transcription" },
-            turn_detection: config.turnDetection ?? null,
-          },
-        },
+        input_audio_transcription: { model: "gpt-4o-mini-transcribe" },
+        turn_detection: config.turnDetection ?? undefined,
       };
       this.dc!.send(JSON.stringify({ type: "session.update", session: sessionUpdate }));
       this.callbacks.onConnectionStateChange("connected");
@@ -139,9 +139,15 @@ export class RealtimeClient {
         console.log("[REALTIME] Session created");
         break;
 
+      // Session updated confirmation
+      case "session.updated":
+        console.log("[REALTIME] Session updated — transcription enabled:", JSON.stringify((event.session as Record<string, unknown>)?.input_audio_transcription ?? "not set"));
+        break;
+
       // Student's speech transcribed (final)
       case "conversation.item.input_audio_transcription.completed": {
         const text = event.transcript as string;
+        console.log("[REALTIME] Student transcription received:", text?.substring(0, 80));
         if (text?.trim()) {
           this.addTranscriptEntry("student", text.trim());
         }
@@ -150,6 +156,7 @@ export class RealtimeClient {
 
       // AI's spoken response transcribed (final — GA event name)
       case "response.output_audio_transcript.done": {
+        if (this._presentationMode) break;
         const text = event.transcript as string;
         if (text?.trim()) {
           this.addTranscriptEntry("examiner", text.trim());
@@ -213,14 +220,8 @@ export class RealtimeClient {
         session.instructions = config.instructions;
       }
       if (config.turnDetection !== undefined) {
-        // Always include transcription config — sending audio.input without it
-        // replaces the entire object and disables input transcription
-        session.audio = {
-          input: {
-            transcription: { model: "gpt-4o-mini-transcription" },
-            turn_detection: config.turnDetection ?? null,
-          },
-        };
+        session.input_audio_transcription = { model: "gpt-4o-mini-transcribe" };
+        session.turn_detection = config.turnDetection ?? undefined;
       }
       this.dc.send(JSON.stringify({ type: "session.update", session }));
     }

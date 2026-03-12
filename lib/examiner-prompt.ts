@@ -49,6 +49,7 @@ function buildCriticalRules(): string {
 - If the student consistently gives short answers (under 15 words), ask progressively more specific questions to draw out longer responses. Example: Instead of "Tell me more", ask "You said [their exact words]. What do you mean by that?"
 - Never repeat a question the student has already answered.
 - Keep your questions natural — don't make it feel like an interrogation, but maintain examiner authority.
+- Never end a response without a follow up question. 
 
 TOPIC MANAGEMENT:
 - Track which topics you've already covered. Never ask about the same topic twice in a row.

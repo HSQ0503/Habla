@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildSystemPrompt } from "@/lib/examiner-prompt";
+import { realtimeLimiter, rateLimitResponse } from "@/lib/rate-limit";
 import type { ChatMessage, AiAnalysis } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -10,6 +11,9 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = realtimeLimiter(session.user.id);
+  if (rl.limited) return rateLimitResponse(rl.retryAfter);
 
   const { sessionId } = await request.json();
   if (!sessionId) {
@@ -43,8 +47,14 @@ export async function POST(request: Request) {
   if (practiceSession.status === "PRESENTING") {
     // Minimal prompt — AI must NOT speak during presentation
     instructions = `You are an IB Individual Oral examiner. The student is now giving their presentation. LISTEN SILENTLY. Do NOT speak, do NOT respond, do NOT interrupt. You will be given instructions when the conversation phase begins.`;
-    // Disable turn detection entirely — prevents the API from detecting turns and auto-generating responses
-    turnDetection = null;
+    // Enable turn detection so the API processes audio and generates transcriptions.
+    // presentationMode on the client cancels any AI responses that get triggered.
+    turnDetection = {
+      type: "server_vad",
+      threshold: 0.6,
+      prefix_padding_ms: 400,
+      silence_duration_ms: 1200,
+    };
   } else {
     // CONVERSING — full examiner prompt
     const transcript = (practiceSession.transcript as ChatMessage[]) || [];
@@ -80,6 +90,9 @@ export async function POST(request: Request) {
           type: "realtime",
           model: "gpt-realtime",
           audio: {
+            input: {
+              transcription: { model: "gpt-4o-mini-transcribe" },
+            },
             output: { voice: "alloy" },
           },
         },
