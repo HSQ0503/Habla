@@ -54,7 +54,7 @@ function MockSessionUI() {
 
         <div className="px-5 pt-4">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg aria-hidden="true" className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0" />
             </svg>
             Identidades
@@ -159,7 +159,7 @@ function MockThemeSelector() {
               {t.label}
             </span>
             {t.selected && (
-              <svg className="w-4 h-4 text-blue-500 ml-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <svg aria-hidden="true" className="w-4 h-4 text-blue-500 ml-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
             )}
@@ -179,7 +179,7 @@ function MockPrepScreen() {
       </div>
       <div className="p-4 flex gap-4">
         <div className="w-28 h-20 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 border border-amber-200/50 flex items-center justify-center shrink-0">
-          <svg className="w-8 h-8 text-amber-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+          <svg aria-hidden="true" className="w-8 h-8 text-amber-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
           </svg>
         </div>
@@ -464,7 +464,8 @@ function BentoGrid() {
 
       {/* CEFR Vocabulary — 1 col x 1 row */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">CEFR Vocabulary</h3>
+        <h3 className="text-base font-semibold text-gray-900 mb-1">CEFR Vocabulary</h3>
+        <p className="text-xs text-gray-500 mb-4">Your vocabulary mapped to European proficiency levels</p>
         <div className="space-y-1.5">
           {["C2", "C1", "B2", "B1", "A2", "A1"].map((level) => (
             <div key={level} className="flex items-center gap-2">
@@ -528,7 +529,7 @@ function BentoGrid() {
           <h3 className="text-base font-semibold text-gray-900">Progress Over Time</h3>
           <div className="flex items-center gap-1.5">
             <span className="text-sm text-gray-400">22</span>
-            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg aria-hidden="true" className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
             <span className="text-sm font-bold text-green-600">26</span>
@@ -580,7 +581,7 @@ export default function LandingPage() {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                 >
                   {link.label}
                 </a>
@@ -598,7 +599,7 @@ export default function LandingPage() {
                 href="/auth/signup"
                 className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
               >
-                Sign Up Free
+                Start Practicing
               </Link>
             </div>
 
@@ -608,11 +609,11 @@ export default function LandingPage() {
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
                 </svg>
               )}
@@ -640,7 +641,7 @@ export default function LandingPage() {
                 href="/auth/signup"
                 className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white text-center hover:bg-indigo-700 transition-colors"
               >
-                Sign Up Free
+                Start Practicing
               </Link>
             </div>
           </div>
@@ -666,9 +667,8 @@ export default function LandingPage() {
               </h1>
 
               <p className="animate-fade-in-up-delay-2 mt-6 text-lg text-gray-600 leading-relaxed">
-                Practice with a realistic AI examiner that adapts to your level.
-                Get instant feedback scored against official IB criteria — anytime,
-                as many times as you want.
+                Practice unlimited times with a realistic AI examiner. Get scored
+                instantly on all 4 IB criteria — and walk into your oral exam confident.
               </p>
 
               <div className="animate-fade-in-up-delay-3 mt-8 flex flex-col sm:flex-row gap-3">
@@ -677,7 +677,7 @@ export default function LandingPage() {
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98]"
                 >
                   Start Practicing
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
                 </Link>
@@ -689,9 +689,29 @@ export default function LandingPage() {
                 </a>
               </div>
 
-              <p className="animate-fade-in-up-delay-3 mt-5 text-sm text-gray-400">
+              <p className="animate-fade-in-up-delay-3 mt-5 text-sm text-gray-500">
                 Free to get started. No credit card required.
               </p>
+
+              <div className="animate-fade-in-up-delay-3 mt-6 flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {[
+                    { initials: "SM", bg: "bg-indigo-500" },
+                    { initials: "AL", bg: "bg-blue-500" },
+                    { initials: "JR", bg: "bg-purple-500" },
+                    { initials: "MK", bg: "bg-teal-500" },
+                    { initials: "LS", bg: "bg-indigo-400" },
+                  ].map((avatar) => (
+                    <div
+                      key={avatar.initials}
+                      className={`w-8 h-8 rounded-full ${avatar.bg} ring-2 ring-white flex items-center justify-center`}
+                    >
+                      <span className="text-[10px] font-semibold text-white">{avatar.initials}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">Trusted by IB students and teachers worldwide</span>
+              </div>
             </div>
 
             <div className="mt-16 lg:mt-0 flex justify-center lg:justify-end">
@@ -706,19 +726,36 @@ export default function LandingPage() {
       {/* ── Exam Flow Timeline ── */}
       <section className="py-14 bg-gradient-to-b from-white to-gray-50/50">
         <div className="mx-auto max-w-4xl px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-3">
+            Mirrors the Real IB Exam
+          </h2>
           <p className="text-center text-xs font-medium text-gray-400 uppercase tracking-widest mb-10">
             Mirrors the real IB IO exam format
           </p>
 
-          {/* Timeline */}
-          <div className="relative flex items-start justify-between mb-10">
+          {/* Timeline — vertical on mobile, horizontal on md+ */}
+          {/* Mobile vertical layout */}
+          <ol className="md:hidden flex flex-col gap-4 mb-10">
+            {EXAM_PHASES.map((phase) => (
+              <li key={phase.name} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white border-2 border-indigo-300 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                </div>
+                <span className="text-sm font-semibold text-gray-800">{phase.name}</span>
+                <span className="text-xs text-gray-400">{phase.duration}</span>
+              </li>
+            ))}
+          </ol>
+
+          {/* Desktop horizontal layout */}
+          <ol className="hidden md:flex relative items-start justify-between mb-10">
             {/* Connecting line */}
-            <div className="absolute top-4 left-[12%] right-[12%] h-0.5 bg-gray-200">
+            <div className="absolute top-4 left-[12%] right-[12%] h-0.5 bg-gray-200" aria-hidden="true">
               <div className="h-full bg-indigo-400 rounded-full animate-timeline-fill" />
             </div>
 
             {EXAM_PHASES.map((phase, i) => (
-              <div key={phase.name} className="relative flex flex-col items-center z-10 w-1/4">
+              <li key={phase.name} className="relative flex flex-col items-center z-10 w-1/4">
                 <div
                   className="w-8 h-8 rounded-full bg-white border-2 border-indigo-300 flex items-center justify-center shadow-sm"
                   style={{ animation: `fadeInUp 0.5s ease-out ${0.3 + i * 0.2}s both` }}
@@ -729,11 +766,14 @@ export default function LandingPage() {
                   {phase.name}
                 </span>
                 <span className="text-[10px] text-gray-400 mt-0.5">{phase.duration}</span>
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
 
           {/* Theme badges */}
+          <p className="text-center text-xs font-medium text-gray-400 uppercase tracking-widest mb-3">
+            Across all 5 IB themes
+          </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             {THEME_BADGES.map((theme) => (
               <span
@@ -760,7 +800,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="space-y-24 lg:space-y-32">
+          <div className="space-y-16 lg:space-y-24">
             {/* Step 01 — Pick Your Topic */}
             <AnimatedRow>
               <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
@@ -783,7 +823,7 @@ export default function LandingPage() {
             {/* Step 02 — Prepare Your Notes */}
             <AnimatedRow>
               <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="order-2 mb-10 lg:mb-0">
+                <div className="lg:order-2 mb-10 lg:mb-0">
                   <span className="text-6xl font-bold text-indigo-100">02</span>
                   <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Prepare Your Notes</h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -791,7 +831,7 @@ export default function LandingPage() {
                     You get 15 minutes to prepare, with the image and cultural context visible.
                   </p>
                 </div>
-                <div className="order-1 flex justify-center lg:justify-start">
+                <div className="lg:order-1 flex justify-center lg:justify-start">
                   <div className="w-full max-w-sm">
                     <MockPrepScreen />
                   </div>
@@ -821,7 +861,7 @@ export default function LandingPage() {
             {/* Step 04 — Get Detailed Feedback */}
             <AnimatedRow>
               <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="order-2 mb-10 lg:mb-0">
+                <div className="lg:order-2 mb-10 lg:mb-0">
                   <span className="text-6xl font-bold text-indigo-100">04</span>
                   <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Get Detailed Feedback</h3>
                   <p className="text-gray-600 leading-relaxed">
@@ -829,7 +869,7 @@ export default function LandingPage() {
                     improvements, tense analysis, vocabulary level, and speaking pace.
                   </p>
                 </div>
-                <div className="order-1 flex justify-center lg:justify-start">
+                <div className="lg:order-1 flex justify-center lg:justify-start">
                   <div className="w-full max-w-sm">
                     <MockFeedbackCard />
                   </div>
@@ -874,7 +914,7 @@ export default function LandingPage() {
               <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-8 h-full">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342" />
                     </svg>
                   </div>
@@ -892,7 +932,7 @@ export default function LandingPage() {
                     "Track your progress with detailed charts",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2.5">
-                      <svg className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <svg aria-hidden="true" className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                       </svg>
                       <span className="text-sm text-gray-700">{item}</span>
@@ -905,7 +945,7 @@ export default function LandingPage() {
                   className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
                 >
                   Start practicing
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
                 </Link>
@@ -917,7 +957,7 @@ export default function LandingPage() {
               <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 p-8 h-full">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                     </svg>
                   </div>
@@ -935,7 +975,7 @@ export default function LandingPage() {
                     "Review every transcript and score",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2.5">
-                      <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <svg aria-hidden="true" className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                       </svg>
                       <span className="text-sm text-gray-700">{item}</span>
@@ -948,7 +988,7 @@ export default function LandingPage() {
                   className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
                 >
                   Set up your class
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
                 </Link>
@@ -964,8 +1004,23 @@ export default function LandingPage() {
           <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
             <div className="mb-8 lg:mb-0">
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight leading-tight">
-                Built to match the real IB Individual Oral, exactly.
+                Trusted by IB students. Aligned with the real exam.
               </h2>
+              <div className="flex items-center gap-6 mt-6">
+                {[
+                  { value: "500+", label: "Sessions" },
+                  { value: "50+", label: "Students" },
+                  { value: "4.8/5", label: "Rating" },
+                ].map((stat, i) => (
+                  <div key={stat.label} className="flex items-center gap-6">
+                    {i > 0 && <div className="w-px h-10 bg-indigo-200" />}
+                    <div>
+                      <p className="text-2xl font-bold text-indigo-600">{stat.value}</p>
+                      <p className="text-xs text-gray-500">{stat.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <ul className="space-y-4">
@@ -973,16 +1028,58 @@ export default function LandingPage() {
                   "Scored on the official IB criteria: A, B1, B2, and C",
                   "Follows the exact exam phases: Prep, Presentation, Discussion",
                   "Full 30-point rubric scale with band descriptors",
+                  "Your data is private and never shared with third parties",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <svg className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <svg aria-hidden="true" className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                     <span className="text-sm text-gray-700 font-medium">{item}</span>
                   </li>
                 ))}
               </ul>
+              <p className="text-xs text-gray-400 italic mt-4">
+                Habla is not affiliated with or endorsed by the IB Organization
+              </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="py-24 lg:py-32 bg-white">
+        <div className="mx-auto max-w-3xl px-6 lg:px-8">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight text-center mb-16">
+            Frequently Asked Questions
+          </h2>
+          <div className="divide-y divide-gray-200">
+            {[
+              {
+                q: "Is Habla endorsed by the IB?",
+                a: "Habla is an independent practice tool aligned with the IB Individual Oral format. We are not affiliated with or endorsed by the International Baccalaureate Organization.",
+              },
+              {
+                q: "How accurate is the AI scoring?",
+                a: "Our AI examiner scores your performance using the official IB rubric criteria (A, B1, B2, C) on the full 30-point scale. While no AI is perfect, it provides consistent, detailed feedback to help you identify areas for improvement.",
+              },
+              {
+                q: "Is it really free?",
+                a: "Yes — Habla is completely free for students. No credit card, no trial period. Teachers can create classes and manage students at no cost.",
+              },
+              {
+                q: "Is my data private?",
+                a: "Absolutely. Your session recordings, transcripts, and scores are private to you (and your teacher, if you join a class). We never share your data with third parties.",
+              },
+              {
+                q: "Can I use Habla for French or other languages?",
+                a: "Currently Habla supports IB Spanish B only. We\u2019re exploring other languages for the future.",
+              },
+            ].map((faq, i, arr) => (
+              <div key={faq.q} className={`py-6 ${i === arr.length - 1 ? "border-b-0" : ""}`}>
+                <h3 className="text-base font-semibold text-gray-900 mb-2">{faq.q}</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1007,8 +1104,8 @@ export default function LandingPage() {
               href="/auth/signup"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-indigo-600 shadow-lg hover:bg-indigo-50 transition-all active:scale-[0.98]"
             >
-              Get Started Free
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              Start Practicing
+              <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
               </svg>
             </Link>
@@ -1020,7 +1117,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <p className="mt-6 text-sm text-indigo-200">
-            Free for students. No credit card required.
+            Free for students and teachers. No credit card required.
           </p>
         </div>
       </section>
@@ -1028,18 +1125,27 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 bg-white py-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div>
               <Image src="/logo.png" alt="Habla" width={80} height={26} />
-              <span className="text-sm text-gray-400">IB Spanish speaking practice</span>
+              <p className="mt-3 text-sm text-gray-500">AI-powered IB Spanish speaking practice</p>
+              <p className="mt-2 text-xs text-gray-400">&copy; 2026 Habla. All rights reserved.</p>
             </div>
-            <div className="flex items-center gap-6">
-              <Link href="/auth/login" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                Log in
-              </Link>
-              <Link href="/auth/signup" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                Sign up
-              </Link>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Product</h4>
+              <ul className="space-y-2">
+                <li><a href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">How It Works</a></li>
+                <li><a href="#features" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Features</a></li>
+                <li><a href="#teachers" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">For Teachers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Legal</h4>
+              <ul className="space-y-2">
+                <li><Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Terms of Service</Link></li>
+                <li><a href="mailto:support@habla.app" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Contact</a></li>
+              </ul>
             </div>
           </div>
         </div>
