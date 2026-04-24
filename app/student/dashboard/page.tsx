@@ -5,10 +5,10 @@ import Link from "next/link";
 import { themeColors } from "@/lib/theme-colors";
 import { CriterionBars, ScoreTrend } from "@/components/dashboard/DashboardCharts";
 
-function scoreColor(total: number) {
-  if (total >= 20) return "text-green-600";
-  if (total >= 12) return "text-yellow-600";
-  return "text-red-500";
+function scoreHue(total: number) {
+  if (total >= 20) return { color: "oklch(0.4 0.1 155)", bg: "var(--sage-soft)", border: "oklch(0.82 0.07 155)" };
+  if (total >= 12) return { color: "oklch(0.42 0.13 65)", bg: "var(--gold-soft)", border: "oklch(0.82 0.09 65)" };
+  return { color: "oklch(0.42 0.14 25)", bg: "var(--rose-soft)", border: "oklch(0.82 0.09 25)" };
 }
 
 function formatDuration(startDate: Date | null, endDate: Date | null) {
@@ -26,213 +26,278 @@ export default async function StudentDashboard() {
 
   const completedSessions = await db.session.findMany({
     where: { userId, status: "COMPLETED" },
-    include: {
-      image: { select: { theme: true } },
-    },
+    include: { image: { select: { theme: true } } },
     orderBy: { completedAt: "desc" },
   });
 
   const totalCompleted = completedSessions.length;
-
-  // Scored sessions with all 4 criterion scores
   const scored = completedSessions.filter(
     (s) => s.scoreA !== null && s.scoreB1 !== null && s.scoreB2 !== null && s.scoreC !== null
   );
-
-  // Total scores (sum of all criteria, out of 30)
-  const totals = scored.map((s) => (s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0));
+  const totals = scored.map(
+    (s) => (s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)
+  );
 
   const avgScore =
     totals.length > 0
       ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10
       : null;
-
-  const bestScore =
-    totals.length > 0
-      ? Math.round(Math.max(...totals) * 10) / 10
-      : null;
-
+  const bestScore = totals.length > 0 ? Math.round(Math.max(...totals) * 10) / 10 : null;
   const lastSessionDate = completedSessions[0]?.completedAt;
 
-  // Criterion averages
-  const avgA = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreA ?? 0), 0) / scored.length) * 10) / 10 : null;
-  const avgB1 = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreB1 ?? 0), 0) / scored.length) * 10) / 10 : null;
-  const avgB2 = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreB2 ?? 0), 0) / scored.length) * 10) / 10 : null;
-  const avgC = scored.length > 0 ? Math.round((scored.reduce((a, s) => a + (s.scoreC ?? 0), 0) / scored.length) * 10) / 10 : null;
+  const avgA =
+    scored.length > 0
+      ? Math.round((scored.reduce((a, s) => a + (s.scoreA ?? 0), 0) / scored.length) * 10) / 10
+      : null;
+  const avgB1 =
+    scored.length > 0
+      ? Math.round((scored.reduce((a, s) => a + (s.scoreB1 ?? 0), 0) / scored.length) * 10) / 10
+      : null;
+  const avgB2 =
+    scored.length > 0
+      ? Math.round((scored.reduce((a, s) => a + (s.scoreB2 ?? 0), 0) / scored.length) * 10) / 10
+      : null;
+  const avgC =
+    scored.length > 0
+      ? Math.round((scored.reduce((a, s) => a + (s.scoreC ?? 0), 0) / scored.length) * 10) / 10
+      : null;
 
-  // Score trend data (chronological)
   const scoreTrendData = scored
     .slice()
     .reverse()
     .map((s) => ({
       date: (s.completedAt ?? s.createdAt).toISOString(),
-      total: Math.round(((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10) / 10,
+      total:
+        Math.round(
+          ((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10
+        ) / 10,
     }));
 
   const recentSessions = completedSessions.slice(0, 5);
+  const firstName = session?.user?.name?.split(" ")[0];
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Welcome back, {session?.user?.name?.split(" ")[0]}
+      <div style={{ marginBottom: 32 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Dashboard</div>
+        <h1 className="display" style={{ fontSize: "clamp(32px, 3.4vw, 42px)", margin: 0 }}>
+          Welcome back, <em>{firstName}</em>.
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p style={{ color: "var(--ink-3)", marginTop: 10, fontSize: 16 }}>
           Track your progress and start a new IO practice session.
         </p>
       </div>
 
       {totalCompleted === 0 ? (
-        <div className="text-center py-16 bg-gradient-to-b from-white to-indigo-50/30 rounded-xl border border-gray-200">
-          <svg className="w-16 h-16 mx-auto text-indigo-200 mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
-          </svg>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            Ready for your first IO practice?
-          </h2>
-          <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-            Choose an image, prepare your thoughts, and practice your oral presentation with an AI examiner.
-          </p>
-          <Link
-            href="/student/practice"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-sm hover:shadow transition-all"
+        <div
+          className="card"
+          style={{
+            padding: "60px 28px",
+            textAlign: "center",
+            background:
+              "radial-gradient(circle at 50% 0%, var(--indigo-softer) 0%, var(--card) 70%)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: "var(--indigo-softer)",
+              border: "1.5px solid var(--ink)",
+              margin: "0 auto 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+            <svg width={30} height={30} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="var(--ink)">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
             </svg>
-            Start New Practice
+          </div>
+          <h2 className="display" style={{ fontSize: 26, margin: "0 0 10px" }}>
+            Ready for your first practice?
+          </h2>
+          <p
+            style={{
+              fontSize: 15,
+              color: "var(--ink-3)",
+              maxWidth: 380,
+              margin: "0 auto 28px",
+              lineHeight: 1.5,
+            }}
+          >
+            Choose an image, take 15 minutes to prepare, and practice your IO with the AI examiner.
+          </p>
+          <Link href="/student/practice" className="btn-primary">
+            Start new practice
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
+            </svg>
           </Link>
         </div>
       ) : (
         <>
-          {/* Stats - 4 cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl border border-gray-200 border-t-2 border-t-indigo-500 p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg text-indigo-600 bg-indigo-50">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-2xl font-semibold text-gray-900">{totalCompleted}</p>
-              <p className="text-sm text-gray-500 mt-0.5">Sessions Completed</p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 14,
+              marginBottom: 20,
+            }}
+          >
+            <div className="stat">
+              <div className="stat-label">Sessions completed</div>
+              <div className="stat-value">{totalCompleted}</div>
             </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 border-t-2 border-t-green-500 p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg text-green-600 bg-green-50">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                  </svg>
-                </div>
+            <div className="stat">
+              <div className="stat-label">Average score</div>
+              <div className="stat-value">
+                {avgScore !== null ? (
+                  <>
+                    {avgScore}
+                    <span style={{ fontSize: 18, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+                  </>
+                ) : (
+                  "—"
+                )}
               </div>
-              <p className="text-2xl font-semibold text-gray-900">
-                {avgScore !== null ? <>{avgScore}<span className="text-sm font-normal text-gray-400">/30</span></> : "—"}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">Average Score</p>
             </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 border-t-2 border-t-amber-500 p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg text-amber-600 bg-amber-50">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.996.078-1.927.228-2.25.75l3.659 3.659M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M18.75 4.236c.996.078 1.927.228 2.25.75l-3.659 3.659M18.75 4.236V2.721m0 1.515-2.023.331M5.25 4.236l2.022.331m11.455 0c-.373 1.838-1.193 3.502-2.354 4.904M7.272 4.567c.373 1.838 1.193 3.502 2.354 4.904m6.879 0a12.14 12.14 0 0 1-2.505 2.021m-6.879-6.925c.373 1.838 1.193 3.502 2.354 4.904m4.525 0a12.14 12.14 0 0 1-4.525 0" />
-                  </svg>
-                </div>
+            <div className="stat">
+              <div className="stat-label">Best score</div>
+              <div className="stat-value">
+                {bestScore !== null ? (
+                  <>
+                    {bestScore}
+                    <span style={{ fontSize: 18, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+                  </>
+                ) : (
+                  "—"
+                )}
               </div>
-              <p className="text-2xl font-semibold text-gray-900">
-                {bestScore !== null ? <>{bestScore}<span className="text-sm font-normal text-gray-400">/30</span></> : "—"}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">Best Score</p>
             </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 border-t-2 border-t-purple-500 p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg text-purple-600 bg-purple-50">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-2xl font-semibold text-gray-900">
+            <div className="stat">
+              <div className="stat-label">Last practice</div>
+              <div className="stat-value" style={{ fontSize: 26 }}>
                 {lastSessionDate
                   ? new Date(lastSessionDate).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                     })
                   : "—"}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">Last Practice</p>
+              </div>
             </div>
           </div>
 
-          {/* Criterion averages */}
-          {avgA !== null && (
-            <CriterionBars avgs={{ A: avgA, B1: avgB1, B2: avgB2, C: avgC }} />
-          )}
+          {avgA !== null && <CriterionBars avgs={{ A: avgA, B1: avgB1, B2: avgB2, C: avgC }} />}
 
-          {/* Score trend chart */}
           <ScoreTrend scores={scoreTrendData} />
 
-          {/* CTA */}
-          <div className="mb-8 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between">
+          <div
+            className="card-soft"
+            style={{
+              padding: 20,
+              marginBottom: 32,
+              background: "var(--indigo-softer)",
+              border: "1px solid var(--accent-soft)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
             <div>
-              <p className="text-sm font-medium text-indigo-900">Ready for more practice?</p>
-              <p className="text-xs text-indigo-600 mt-0.5">Start a new IO session to keep improving.</p>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--accent-2)" }}>
+                Ready for more practice?
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-3)" }}>
+                Start a new session to keep improving.
+              </p>
             </div>
-            <Link
-              href="/student/practice"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 shadow-sm hover:shadow transition-all shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+            <Link href="/student/practice" className="btn-primary">
+              Start new practice
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
               </svg>
-              Start New Practice
             </Link>
           </div>
 
-          {/* Recent sessions */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                Recent Sessions
-              </h2>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <div className="eyebrow">Recent sessions</div>
               <Link
                 href="/student/history"
-                className="text-sm text-indigo-600 hover:text-indigo-500 font-medium transition-colors"
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--accent)" }}
               >
-                View all
+                View all →
               </Link>
             </div>
-            <div className="space-y-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {recentSessions.map((s) => {
-                const theme = themeColors[s.image.theme] || {
-                  bg: "bg-gray-100",
-                  text: "text-gray-700",
-                  label: s.image.theme,
-                };
-                const hasScores = s.scoreA !== null && s.scoreB1 !== null && s.scoreB2 !== null && s.scoreC !== null;
+                const theme = themeColors[s.image.theme];
+                const hasScores =
+                  s.scoreA !== null && s.scoreB1 !== null && s.scoreB2 !== null && s.scoreC !== null;
                 const total = hasScores
-                  ? Math.round(((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10) / 10
+                  ? Math.round(
+                      ((s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0)) * 10
+                    ) / 10
                   : null;
                 const duration = formatDuration(s.prepStartedAt, s.completedAt);
-
-                const scoreBorder = total !== null
-                  ? total >= 20 ? "border-l-2 border-l-green-400" : total >= 12 ? "border-l-2 border-l-yellow-400" : "border-l-2 border-l-red-400"
-                  : "";
+                const hue = total !== null ? scoreHue(total) : null;
 
                 return (
                   <Link
                     key={s.id}
                     href={`/student/history/${s.id}`}
-                    className={`flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4 hover:border-indigo-200 hover:shadow-sm transition-all group ${scoreBorder}`}
+                    className="card-soft"
+                    style={{
+                      padding: "14px 18px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 16,
+                      transition: "border-color 150ms ease, box-shadow 150ms ease",
+                    }}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${theme.bg} ${theme.text}`}>
-                        {theme.label}
-                      </span>
-                      <span className="text-sm text-gray-500">
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                      {theme && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                            background: theme.soft,
+                            color: theme.accent,
+                            border: `1px solid ${theme.accent}20`,
+                            fontSize: 12,
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              background: theme.accent,
+                            }}
+                          />
+                          {theme.label}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 13, color: "var(--ink-3)" }}>
                         {s.completedAt
                           ? new Date(s.completedAt).toLocaleDateString("en-US", {
                               month: "short",
@@ -242,25 +307,62 @@ export default async function StudentDashboard() {
                           : "—"}
                       </span>
                       {duration && (
-                        <span className="text-xs text-gray-400">{duration}</span>
+                        <span
+                          className="mono"
+                          style={{ fontSize: 11, color: "var(--ink-4)" }}
+                        >
+                          {duration}
+                        </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 ml-4">
-                      {/* Criterion dots */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        flexShrink: 0,
+                      }}
+                    >
                       {hasScores && (
-                        <div className="hidden sm:flex items-center gap-1.5">
-                          <span className="text-xs text-gray-400">A:{s.scoreA}</span>
-                          <span className="text-xs text-gray-400">B1:{s.scoreB1}</span>
-                          <span className="text-xs text-gray-400">B2:{s.scoreB2}</span>
-                          <span className="text-xs text-gray-400">C:{s.scoreC}</span>
+                        <div
+                          className="mono"
+                          style={{
+                            display: "none",
+                            gap: 10,
+                            fontSize: 11,
+                            color: "var(--ink-4)",
+                          }}
+                          data-hide-sm
+                        >
+                          <span>A:{s.scoreA}</span>
+                          <span>B1:{s.scoreB1}</span>
+                          <span>B2:{s.scoreB2}</span>
+                          <span>C:{s.scoreC}</span>
                         </div>
                       )}
-                      {total !== null && (
-                        <span className={`text-sm font-semibold ${scoreColor(total)}`}>
+                      {total !== null && hue && (
+                        <span
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: hue.bg,
+                            color: hue.color,
+                            border: `1px solid ${hue.border}`,
+                          }}
+                        >
                           {total}/30
                         </span>
                       )}
-                      <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <svg
+                        width={14}
+                        height={14}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        strokeWidth={2}
+                        stroke="var(--ink-4)"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                       </svg>
                     </div>

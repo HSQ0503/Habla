@@ -33,9 +33,7 @@ function hasFeedbackResult(feedback: unknown): feedback is FeedbackResult {
   );
 }
 
-function isFeedbackError(
-  feedback: unknown
-): feedback is { error: boolean; message: string } {
+function isFeedbackError(feedback: unknown): feedback is { error: boolean; message: string } {
   return (
     feedback !== null &&
     typeof feedback === "object" &&
@@ -44,10 +42,10 @@ function isFeedbackError(
   );
 }
 
-function scoreColor(total: number) {
-  if (total >= 20) return { bg: "bg-green-50", border: "border-green-200", text: "text-green-700" };
-  if (total >= 12) return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700" };
-  return { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" };
+function scoreHue(total: number) {
+  if (total >= 20) return { color: "oklch(0.4 0.1 155)", bg: "var(--sage-soft)", border: "oklch(0.82 0.07 155)" };
+  if (total >= 12) return { color: "oklch(0.42 0.13 65)", bg: "var(--gold-soft)", border: "oklch(0.82 0.09 65)" };
+  return { color: "oklch(0.42 0.14 25)", bg: "var(--rose-soft)", border: "oklch(0.82 0.09 25)" };
 }
 
 function formatDuration(start: string | null, end: string | null) {
@@ -66,6 +64,23 @@ const TABS = [
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
+
+function Loading({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "60vh",
+        color: "var(--ink-3)",
+        fontSize: 14,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
 
 export default function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -147,46 +162,70 @@ export default function SessionDetailPage() {
     setAnalyzing(false);
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading session...
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <Loading label="Loading session…" />;
 
   if (!session || error === "Session not found") {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Session not found</p>
-          <Link href="/student/history" className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
-            Back to History
-          </Link>
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <p style={{ color: "var(--ink-3)", margin: 0 }}>Session not found</p>
+        <Link
+          href="/student/history"
+          style={{ fontSize: 13, fontWeight: 500, color: "var(--accent)" }}
+        >
+          ← Back to history
+        </Link>
       </div>
     );
   }
 
   if (analyzing) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center bg-white rounded-xl border border-gray-200 p-8 max-w-sm">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center">
-            <svg className="animate-spin h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+        }}
+      >
+        <div className="card" style={{ padding: 36, maxWidth: 380, textAlign: "center" }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--indigo-softer)",
+              border: "1.5px solid var(--ink)",
+              margin: "0 auto 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg
+              width={24}
+              height={24}
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ animation: "habla-pulse-dot 1.4s ease-in-out infinite" }}
+            >
+              <circle cx="12" cy="12" r="9" stroke="var(--accent)" strokeWidth="2" strokeDasharray="44" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analyzing your performance...</h2>
-          <p className="text-sm text-gray-500">
-            Your transcript is being graded against the IB rubric. This usually takes 15-30 seconds.
+          <h2 className="display" style={{ fontSize: 22, margin: "0 0 8px" }}>
+            Analyzing your performance…
+          </h2>
+          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: 0 }}>
+            Your transcript is being graded against the IB rubric. Usually 15–30 seconds.
           </p>
         </div>
       </div>
@@ -195,103 +234,177 @@ export default function SessionDetailPage() {
 
   if (isFeedbackError(session.feedback)) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
-            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <div style={{ maxWidth: 440, margin: "48px auto 0" }}>
+        <div className="card" style={{ padding: 28, textAlign: "center" }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "var(--rose-soft)",
+              border: "1.5px solid oklch(0.82 0.09 25)",
+              margin: "0 auto 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="oklch(0.5 0.16 25)">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analysis Failed</h2>
-          <p className="text-sm text-gray-500 mb-4">{session.feedback.message}</p>
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-          <button
-            onClick={retryAnalysis}
-            className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Retry Analysis
+          <h2 className="display" style={{ fontSize: 22, margin: "0 0 8px" }}>
+            Analysis failed
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", marginBottom: 16 }}>
+            {session.feedback.message}
+          </p>
+          {error && (
+            <p style={{ fontSize: 13, color: "oklch(0.5 0.16 25)", marginBottom: 12 }}>{error}</p>
+          )}
+          <button onClick={retryAnalysis} className="btn-primary">
+            Retry analysis
           </button>
         </div>
       </div>
     );
   }
 
-  const theme = themeColors[session.image.theme] || {
-    bg: "bg-gray-100",
-    text: "text-gray-700",
-    label: session.image.theme,
-  };
+  const theme = themeColors[session.image.theme];
   const hasFeedback = hasFeedbackResult(session.feedback);
   const total = hasFeedback ? (session.feedback as FeedbackResult).ibGrades.totalMark : null;
   const duration = formatDuration(session.prepStartedAt, session.completedAt);
-  const sc = total !== null ? scoreColor(total) : null;
+  const hue = total !== null ? scoreHue(total) : null;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Back link */}
+    <div style={{ maxWidth: 960, margin: "0 auto" }}>
       <Link
         href="/student/history"
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          color: "var(--ink-3)",
+          marginBottom: 18,
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
-        Back to History
+        Back to history
       </Link>
 
-      {/* Top section: image + theme + date + score */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex items-start gap-4 flex-1">
+      <div
+        style={{
+          display: "flex",
+          gap: 20,
+          marginBottom: 28,
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ display: "flex", gap: 16, flex: 1, minWidth: 260 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={session.image.url}
-            alt="Session image"
-            className="w-20 h-20 rounded-lg object-cover bg-gray-100 shrink-0 border border-gray-200"
+            alt="Session stimulus"
+            style={{
+              width: 88,
+              height: 88,
+              borderRadius: 12,
+              objectFit: "cover",
+              border: "1px solid var(--line)",
+              flexShrink: 0,
+            }}
           />
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+            {theme && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  background: theme.soft,
+                  color: theme.accent,
+                  border: `1px solid ${theme.accent}20`,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  marginBottom: 8,
+                }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent }} />
                 {theme.label}
               </span>
-            </div>
-            <p className="text-sm text-gray-500">
+            )}
+            <h1
+              className="display"
+              style={{ fontSize: "clamp(22px, 2.4vw, 30px)", margin: "0 0 6px" }}
+            >
               {new Date(session.createdAt).toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
                 year: "numeric",
               })}
-            </p>
+            </h1>
             {duration && (
-              <p className="text-xs text-gray-400 mt-0.5">Duration: {duration}</p>
+              <p className="mono" style={{ fontSize: 12, color: "var(--ink-4)", margin: 0 }}>
+                Duration: {duration}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Score banner */}
-        {total !== null && sc && (
-          <div className={`rounded-xl border ${sc.border} ${sc.bg} px-5 py-3 text-center shrink-0`}>
-            <p className={`text-3xl font-bold ${sc.text}`}>
-              {total}<span className="text-sm font-normal opacity-60">/30</span>
-            </p>
+        {total !== null && hue && (
+          <div
+            className="card"
+            style={{
+              padding: "18px 24px",
+              background: hue.bg,
+              borderColor: hue.border,
+              textAlign: "center",
+              minWidth: 120,
+            }}
+          >
+            <div
+              className="display"
+              style={{
+                fontSize: 44,
+                fontWeight: 600,
+                color: hue.color,
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+              }}
+            >
+              {total}
+              <span style={{ fontSize: 18, opacity: 0.6, fontWeight: 500 }}>/30</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Tab navigation */}
       {hasFeedback && (
         <>
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="flex gap-6">
+          <div style={{ borderBottom: "1px solid var(--line)", marginBottom: 24 }}>
+            <nav style={{ display: "flex", gap: 28 }}>
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => switchTab(tab.key)}
-                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? "border-indigo-600 text-indigo-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
+                  style={{
+                    padding: "12px 0 14px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    background: "none",
+                    border: "none",
+                    borderBottom: activeTab === tab.key ? "2px solid var(--ink)" : "2px solid transparent",
+                    color: activeTab === tab.key ? "var(--ink)" : "var(--ink-3)",
+                    cursor: "pointer",
+                    transition: "color 150ms ease, border-color 150ms ease",
+                  }}
                 >
                   {tab.label}
                 </button>
@@ -299,7 +412,6 @@ export default function SessionDetailPage() {
             </nav>
           </div>
 
-          {/* Tab content */}
           {activeTab === "feedback" && (
             <FeedbackView
               feedback={session.feedback as FeedbackResult}
@@ -308,57 +420,76 @@ export default function SessionDetailPage() {
               hideActions
             />
           )}
-
           {activeTab === "transcript" && (
             <TranscriptView
               transcript={session.transcript || []}
               onBack={() => switchTab("feedback")}
             />
           )}
-
           {activeTab === "analytics" && (
             <SessionAnalytics feedback={session.feedback as FeedbackResult} />
           )}
         </>
       )}
 
-      {/* Fallback for sessions without feedback */}
       {!hasFeedback && (
         <>
-          {/* Presentation text */}
           {session.transcript?.find((m) => m.role === "presentation") && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-                Your Presentation
-              </h2>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+              <div className="eyebrow" style={{ marginBottom: 12 }}>Your presentation</div>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "var(--ink-2)",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  margin: 0,
+                }}
+              >
                 {session.transcript.find((m) => m.role === "presentation")?.content}
               </p>
             </div>
           )}
 
-          {/* Conversation */}
           {session.transcript?.filter((m) => m.role !== "presentation").length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-              <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
-                Conversation Transcript
-              </h2>
-              <div className="space-y-4">
+            <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+              <div className="eyebrow" style={{ marginBottom: 16 }}>Conversation transcript</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {session.transcript
                   .filter((m) => m.role !== "presentation")
                   .map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: msg.role === "student" ? "flex-end" : "flex-start",
+                      }}
+                    >
                       <div
-                        className={`rounded-2xl px-4 py-3 max-w-[80%] ${
-                          msg.role === "student"
-                            ? "bg-gray-100 text-gray-900 rounded-br-md"
-                            : "bg-indigo-50 text-indigo-900 rounded-bl-md"
-                        }`}
+                        style={{
+                          maxWidth: "82%",
+                          borderRadius: 16,
+                          borderTopLeftRadius: msg.role === "student" ? 16 : 6,
+                          borderTopRightRadius: msg.role === "student" ? 6 : 16,
+                          padding: "10px 14px",
+                          background: msg.role === "student" ? "var(--ink)" : "var(--indigo-softer)",
+                          color: msg.role === "student" ? "var(--paper)" : "var(--ink)",
+                          border: msg.role === "student"
+                            ? "1px solid var(--ink)"
+                            : "1px solid oklch(0.88 0.04 280)",
+                        }}
                       >
-                        <p className="text-xs font-medium mb-1 opacity-60">
+                        <p className="eyebrow" style={{
+                          margin: 0,
+                          marginBottom: 4,
+                          fontSize: 10,
+                          color: msg.role === "student" ? "oklch(0.75 0.02 275)" : "var(--ink-3)",
+                        }}>
                           {msg.role === "student" ? "You" : "Examiner"}
                         </p>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: "pre-wrap" }}>
+                          {msg.content}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -367,32 +498,27 @@ export default function SessionDetailPage() {
           )}
 
           {session.status === "COMPLETED" && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center mb-6">
-              <p className="text-sm text-gray-500 mb-3">This session hasn&apos;t been analyzed yet.</p>
-              <button
-                onClick={retryAnalysis}
-                className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Analyze Now
+            <div className="card" style={{ padding: 26, textAlign: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 14, color: "var(--ink-3)", marginBottom: 14 }}>
+                This session hasn&apos;t been analyzed yet.
+              </p>
+              <button onClick={retryAnalysis} className="btn-primary">
+                Analyze now
               </button>
             </div>
           )}
         </>
       )}
 
-      {/* Bottom actions */}
-      <div className="flex gap-3 mt-8">
+      <div style={{ display: "flex", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
         <Link
           href={`/student/practice?theme=${session.image.theme}`}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          className="btn-primary"
         >
-          Practice Again
+          Practice again
         </Link>
-        <Link
-          href="/student/history"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          Back to History
+        <Link href="/student/history" className="btn-ghost">
+          Back to history
         </Link>
       </div>
     </div>

@@ -29,6 +29,51 @@ const themes = [
   { value: "SHARING_THE_PLANET", label: "Compartir el planeta", sublabel: "Sharing the Planet" },
 ];
 
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        border: "1px solid var(--line)",
+        borderRadius: 10,
+        background: "var(--card)",
+        padding: 3,
+      }}
+    >
+      {options.map((o) => {
+        const active = value === o.value;
+        return (
+          <button
+            key={o.value}
+            onClick={() => onChange(o.value)}
+            style={{
+              padding: "7px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              borderRadius: 7,
+              border: "none",
+              background: active ? "var(--ink)" : "transparent",
+              color: active ? "var(--paper)" : "var(--ink-2)",
+              cursor: "pointer",
+              transition: "background 150ms ease, color 150ms ease",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PracticePage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -43,7 +88,6 @@ export default function PracticePage() {
   const [starting, setStarting] = useState(false);
   const [language, setLanguage] = useState<"es" | "en">("es");
 
-  // Fetch class info for library toggle
   useEffect(() => {
     if (!session?.user?.classId) return;
     fetch("/api/classes/mine")
@@ -103,37 +147,56 @@ export default function PracticePage() {
   }
 
   const hasClass = !!classInfo;
+  const stepIndex = ["theme", "image", "confirm"].indexOf(step);
 
   return (
-    <div className="max-w-3xl mx-auto">
-      {/* Steps indicator */}
-      <div className="flex items-center gap-2 mb-8">
+    <div style={{ maxWidth: 780, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 32, flexWrap: "wrap" }}>
         {["Theme", "Image", "Confirm"].map((label, i) => {
-          const stepIndex = ["theme", "image", "confirm"].indexOf(step);
           const isActive = i === stepIndex;
           const isDone = i < stepIndex;
           return (
-            <div key={label} className="flex items-center gap-2">
-              {i > 0 && <div className={`w-8 h-px ${isDone ? "bg-indigo-400" : "bg-gray-200"}`} />}
-              <div className="flex items-center gap-1.5">
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {i > 0 && (
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                    isActive
-                      ? "bg-indigo-600 text-white"
-                      : isDone
-                      ? "bg-indigo-100 text-indigo-700"
-                      : "bg-gray-100 text-gray-400"
-                  }`}
+                  style={{
+                    width: 32,
+                    height: 1,
+                    background: isDone ? "var(--accent)" : "var(--line)",
+                  }}
+                />
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: isActive ? "var(--ink)" : isDone ? "var(--accent-softer)" : "var(--paper-2)",
+                    color: isActive ? "var(--paper)" : isDone ? "var(--accent-2)" : "var(--ink-4)",
+                    border: `1px solid ${isDone || isActive ? "var(--ink)" : "var(--line)"}`,
+                  }}
                 >
                   {isDone ? (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" strokeWidth={3} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                   ) : (
                     i + 1
                   )}
                 </div>
-                <span className={`text-sm font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`}>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: isActive ? "var(--ink)" : "var(--ink-4)",
+                  }}
+                >
                   {label}
                 </span>
               </div>
@@ -142,157 +205,275 @@ export default function PracticePage() {
         })}
       </div>
 
-      {/* Step 1: Theme Selection */}
       {step === "theme" && (
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Start IO Practice</h1>
-          <p className="text-sm text-gray-500 mb-6">Choose a theme to explore.</p>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>Step 01 · Theme</div>
+          <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 36px)", margin: 0 }}>
+            Start IO practice.
+          </h1>
+          <p style={{ color: "var(--ink-3)", marginTop: 8, marginBottom: 24, fontSize: 15 }}>
+            Pick a theme you actually care about.
+          </p>
 
-          {/* Library toggle */}
           {classLoaded && hasClass && (
-            <div className="mb-6">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                Image Library
-              </label>
-              <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
-                <button
-                  onClick={() => setLibrary("global")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    library === "global"
-                      ? "bg-indigo-600 text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  Global Library
-                </button>
-                <button
-                  onClick={() => setLibrary("class")}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    library === "class"
-                      ? "bg-indigo-600 text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  {classInfo?.teacher.name}&apos;s Library
-                </button>
-              </div>
+            <div style={{ marginBottom: 22 }}>
+              <label className="label">Image library</label>
+              <Segmented
+                value={library}
+                onChange={setLibrary}
+                options={[
+                  { value: "global", label: "Global library" },
+                  { value: "class", label: `${classInfo?.teacher.name}'s library` },
+                ]}
+              />
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 12,
+            }}
+          >
             {themes.map((t) => {
               const colors = themeColors[t.value];
               return (
                 <button
                   key={t.value}
                   onClick={() => handleThemeSelect(t.value)}
-                  className={`text-left p-5 rounded-xl border-2 border-transparent bg-white hover:border-gray-200 shadow-sm hover:shadow transition-all`}
+                  className="card-soft"
+                  style={{
+                    textAlign: "left",
+                    padding: 18,
+                    border: "1px solid var(--line)",
+                    background: "var(--card)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                    transition: "border-color 150ms ease, transform 150ms ease",
+                  }}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${colors.bg}`}>
-                      <div className={`w-5 h-5 rounded-full ${colors.bg} ${colors.text} flex items-center justify-center`}>
-                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="6" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{t.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{t.sublabel}</p>
-                    </div>
+                  <span
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: colors.soft,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: `1px solid ${colors.accent}20`,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: colors.accent,
+                      }}
+                    />
+                  </span>
+                  <div>
+                    <p
+                      className="display"
+                      style={{ margin: 0, fontSize: 16, fontWeight: 600 }}
+                    >
+                      {t.label}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-3)" }}>
+                      {t.sublabel}
+                    </p>
                   </div>
                 </button>
               );
             })}
             <button
               onClick={() => handleThemeSelect(null)}
-              className="text-left p-5 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 transition-all"
+              style={{
+                textAlign: "left",
+                padding: 18,
+                border: "1.5px dashed var(--line)",
+                borderRadius: "var(--radius-lg)",
+                background: "var(--paper-2)",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                cursor: "pointer",
+              }}
             >
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-gray-100">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Random Theme</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Surprise me with any theme</p>
-                </div>
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "var(--card)",
+                  border: "1px solid var(--line)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="var(--ink-3)">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                </svg>
+              </span>
+              <div>
+                <p className="display" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                  Surprise me
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-3)" }}>
+                  Random theme from the library
+                </p>
               </div>
             </button>
           </div>
         </div>
       )}
 
-      {/* Step 2: Image Selection */}
       {step === "image" && (
         <div>
           <button
-            onClick={() => { setStep("theme"); setSelectedTheme(null); setImages([]); }}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+            onClick={() => {
+              setStep("theme");
+              setSelectedTheme(null);
+              setImages([]);
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "var(--ink-3)",
+              marginBottom: 16,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
             Back to themes
           </button>
 
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Choose an Image</h1>
-          <p className="text-sm text-gray-500 mb-6">
+          <div className="eyebrow" style={{ marginBottom: 10 }}>Step 02 · Image</div>
+          <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 36px)", margin: 0 }}>
+            Choose an image.
+          </h1>
+          <p style={{ color: "var(--ink-3)", marginTop: 8, marginBottom: 20, fontSize: 14 }}>
             {selectedTheme
-              ? `Showing images for ${themeColors[selectedTheme]?.label || selectedTheme}`
-              : "Showing images from all themes"}
-            {library === "class" && classInfo ? ` from ${classInfo.teacher.name}'s library` : " from the global library"}
+              ? `Showing ${themeColors[selectedTheme]?.label || selectedTheme}`
+              : "Showing all themes"}
+            {library === "class" && classInfo
+              ? ` from ${classInfo.teacher.name}'s library`
+              : " from the global library"}
+            .
           </p>
 
           {loadingImages ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 12,
+              }}
+            >
               {[1, 2, 3].map((i) => (
-                <div key={i} className="aspect-[4/3] rounded-xl bg-gray-100 animate-pulse" />
+                <div
+                  key={i}
+                  style={{
+                    aspectRatio: "4/3",
+                    background: "var(--paper-2)",
+                    borderRadius: 14,
+                    border: "1px solid var(--line)",
+                  }}
+                />
               ))}
             </div>
           ) : images.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <p className="text-sm text-gray-500">No images available{library === "class" ? " in your teacher's library" : ""} for this theme yet.</p>
+            <div className="card" style={{ padding: 40, textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+                No images available
+                {library === "class" ? " in your teacher's library" : ""} for this theme yet.
+              </p>
               <button
-                onClick={() => { setStep("theme"); setSelectedTheme(null); }}
-                className="mt-3 text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                onClick={() => {
+                  setStep("theme");
+                  setSelectedTheme(null);
+                }}
+                style={{
+                  marginTop: 12,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--accent)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 Choose a different theme
               </button>
             </div>
           ) : (
             <>
-              <div className="mb-4">
-                <button
-                  onClick={handleSurpriseMe}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
+              <div style={{ marginBottom: 16 }}>
+                <button onClick={handleSurpriseMe} className="btn-ghost">
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                   </svg>
-                  Surprise Me
+                  Surprise me
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: 12,
+                }}
+              >
                 {images.map((img) => {
                   const theme = themeColors[img.theme];
                   return (
                     <button
                       key={img.id}
                       onClick={() => handleImageSelect(img)}
-                      className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border-2 border-transparent hover:border-indigo-400 transition-all"
+                      style={{
+                        position: "relative",
+                        aspectRatio: "4/3",
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        background: "var(--paper-2)",
+                        border: "1.5px solid var(--line)",
+                        padding: 0,
+                        cursor: "pointer",
+                        transition: "border-color 150ms ease, transform 150ms ease",
+                      }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={img.url}
                         alt="Practice image"
-                        className="w-full h-full object-cover"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                       {theme && (
-                        <span className={`absolute top-2 left-2 px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 8,
+                            left: 8,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                            background: theme.soft,
+                            color: theme.accent,
+                            border: `1px solid ${theme.accent}20`,
+                            fontSize: 11,
+                            fontWeight: 500,
+                          }}
+                        >
                           {theme.label}
                         </span>
                       )}
@@ -305,77 +486,129 @@ export default function PracticePage() {
         </div>
       )}
 
-      {/* Step 3: Confirm */}
       {step === "confirm" && selectedImage && (
         <div>
           <button
-            onClick={() => { setStep("image"); setSelectedImage(null); }}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+            onClick={() => {
+              setStep("image");
+              setSelectedImage(null);
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "var(--ink-3)",
+              marginBottom: 16,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
             Back to images
           </button>
 
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Ready to Begin</h1>
-          <p className="text-sm text-gray-500 mb-6">
+          <div className="eyebrow" style={{ marginBottom: 10 }}>Step 03 · Confirm</div>
+          <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 36px)", margin: 0 }}>
+            Ready to begin.
+          </h1>
+          <p style={{ color: "var(--ink-3)", marginTop: 8, marginBottom: 24, fontSize: 15 }}>
             Review your selection and start when ready.
           </p>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="card" style={{ overflow: "hidden" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedImage.url}
               alt="Selected practice image"
-              className="w-full max-h-80 object-contain bg-gray-100"
+              style={{
+                width: "100%",
+                maxHeight: 320,
+                objectFit: "contain",
+                background: "var(--paper-2)",
+                display: "block",
+              }}
             />
-            <div className="p-5">
-              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${themeColors[selectedImage.theme]?.bg || "bg-gray-100"} ${themeColors[selectedImage.theme]?.text || "text-gray-700"}`}>
-                {themeColors[selectedImage.theme]?.label || selectedImage.theme}
-              </span>
+            <div style={{ padding: 18 }}>
+              {themeColors[selectedImage.theme] && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    background: themeColors[selectedImage.theme].soft,
+                    color: themeColors[selectedImage.theme].accent,
+                    border: `1px solid ${themeColors[selectedImage.theme].accent}20`,
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: themeColors[selectedImage.theme].accent,
+                    }}
+                  />
+                  {themeColors[selectedImage.theme].label}
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-            <h3 className="text-sm font-medium text-indigo-900 mb-2">Session Structure</h3>
-            <div className="space-y-1.5 text-sm text-indigo-700">
-              <p>1. <strong>Preparation</strong> — 15 minutes to study the image and plan</p>
-              <p>2. <strong>Presentation</strong> — 3–4 minutes to present your analysis</p>
-              <p>3. <strong>Follow-up Discussion</strong> — 4–5 minutes discussing your presentation</p>
-              <p>4. <strong>General Discussion</strong> — 5–6 minutes on a different theme</p>
+          <div
+            className="card-soft"
+            style={{
+              marginTop: 20,
+              padding: 20,
+              background: "var(--indigo-softer)",
+              border: "1px solid var(--accent-soft)",
+            }}
+          >
+            <div className="eyebrow" style={{ color: "var(--accent-2)", marginBottom: 10 }}>
+              Session structure
             </div>
+            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "var(--ink-2)", lineHeight: 1.7 }}>
+              <li>
+                <strong style={{ color: "var(--ink)" }}>Preparation</strong> — 15 minutes to study and plan
+              </li>
+              <li>
+                <strong style={{ color: "var(--ink)" }}>Presentation</strong> — 3–4 minutes to present
+              </li>
+              <li>
+                <strong style={{ color: "var(--ink)" }}>Follow-up</strong> — 4–5 minutes discussing your presentation
+              </li>
+              <li>
+                <strong style={{ color: "var(--ink)" }}>Discussion</strong> — 5–6 minutes on broader themes
+              </li>
+            </ol>
           </div>
 
-          {/* Language toggle */}
-          <div className="mt-4">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Exam Language
-            </label>
-            <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
-              <button
-                onClick={() => setLanguage("es")}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  language === "es"
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Español
-              </button>
-              <button
-                onClick={() => setLanguage("en")}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  language === "en"
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                English (Practice)
-              </button>
-            </div>
+          <div style={{ marginTop: 20 }}>
+            <label className="label">Exam language</label>
+            <Segmented
+              value={language}
+              onChange={setLanguage}
+              options={[
+                { value: "es", label: "Español" },
+                { value: "en", label: "English (practice)" },
+              ]}
+            />
             {language === "en" && (
-              <p className="text-xs text-amber-600 mt-1.5">
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "oklch(0.42 0.13 65)",
+                  marginTop: 8,
+                  marginBottom: 0,
+                }}
+              >
                 English mode is for familiarization only. Official IB exams are conducted in Spanish.
               </p>
             )}
@@ -384,22 +617,24 @@ export default function PracticePage() {
           <button
             onClick={handleBegin}
             disabled={starting}
-            className="mt-6 w-full flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="btn-primary"
+            style={{
+              marginTop: 24,
+              width: "100%",
+              justifyContent: "center",
+              padding: "14px 18px",
+              fontSize: 15,
+              opacity: starting ? 0.6 : 1,
+            }}
           >
             {starting ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Starting...
-              </span>
+              "Starting…"
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                Begin practice
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
                 </svg>
-                Begin Practice
               </>
             )}
           </button>

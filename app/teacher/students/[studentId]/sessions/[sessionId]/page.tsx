@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { themeColors } from "@/lib/theme-colors";
 import FeedbackView from "@/components/practice/FeedbackView";
 import TranscriptView from "@/components/practice/TranscriptView";
 import SessionAnalytics from "@/components/session/SessionAnalytics";
@@ -38,22 +39,10 @@ const CRITERIA = [
   { key: "C", label: "C — Interactive Skills", max: 6, field: "scoreC" as const },
 ];
 
-function themeLabel(theme: string) {
-  return theme
-    .split("_")
-    .map((w) => w[0] + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function themeBadgeColor(theme: string) {
-  const colors: Record<string, string> = {
-    IDENTITIES: "bg-blue-50 text-blue-700",
-    EXPERIENCES: "bg-purple-50 text-purple-700",
-    HUMAN_INGENUITY: "bg-amber-50 text-amber-700",
-    SOCIAL_ORGANIZATION: "bg-green-50 text-green-700",
-    SHARING_THE_PLANET: "bg-teal-50 text-teal-700",
-  };
-  return colors[theme] || "bg-gray-50 text-gray-700";
+function scoreHue(total: number) {
+  if (total >= 20) return { color: "oklch(0.4 0.1 155)", bg: "var(--sage-soft)", border: "oklch(0.82 0.07 155)" };
+  if (total >= 12) return { color: "oklch(0.42 0.13 65)", bg: "var(--gold-soft)", border: "oklch(0.82 0.09 65)" };
+  return { color: "oklch(0.42 0.14 25)", bg: "var(--rose-soft)", border: "oklch(0.82 0.09 25)" };
 }
 
 export default function TeacherSessionDetailPage() {
@@ -62,7 +51,6 @@ export default function TeacherSessionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("feedback");
 
-  // Override form state
   const [overrideScores, setOverrideScores] = useState<Record<string, string>>({});
   const [overrideJustifications, setOverrideJustifications] = useState<Record<string, string>>({});
   const [overrideSaving, setOverrideSaving] = useState<string | null>(null);
@@ -70,15 +58,14 @@ export default function TeacherSessionDetailPage() {
 
   const fetchData = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}`);
-    if (res.ok) {
-      const d = await res.json();
-      setData(d);
-    }
+    if (res.ok) setData(await res.json());
     setLoading(false);
   }, [sessionId]);
 
   useEffect(() => {
-    void (async () => { await fetchData(); })();
+    void (async () => {
+      await fetchData();
+    })();
   }, [fetchData]);
 
   async function submitOverride(criterion: string) {
@@ -104,16 +91,26 @@ export default function TeacherSessionDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "40vh",
+          color: "var(--ink-3)",
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
   if (!data || !data.feedback?.ibGrades) {
     return (
-      <div className="text-center py-20">
-        <p className="text-sm text-gray-500">Session not found or feedback not yet available.</p>
+      <div className="card" style={{ padding: 40, textAlign: "center" }}>
+        <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+          Session not found or feedback not yet available.
+        </p>
       </div>
     );
   }
@@ -122,6 +119,8 @@ export default function TeacherSessionDetailPage() {
   const transcript = (data.transcript || []) as ChatMessage[];
   const overrides = data.feedback.overrides || {};
   const hasViolations = data.violations && data.violations.length > 0;
+  const theme = themeColors[data.image.theme];
+  const hue = scoreHue(total);
 
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: "feedback", label: "Feedback", show: true },
@@ -133,54 +132,96 @@ export default function TeacherSessionDetailPage() {
 
   return (
     <div>
-      {/* Back link */}
       <Link
         href={`/teacher/students/${studentId}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          color: "var(--ink-3)",
+          marginBottom: 20,
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
-        Back to Student
+        Back to student
       </Link>
 
-      {/* Header */}
-      <div className="flex items-start gap-4 mb-6">
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={data.image.url}
           alt=""
-          className="w-16 h-16 rounded-lg object-cover border border-gray-200 shrink-0"
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: 12,
+            objectFit: "cover",
+            border: "1px solid var(--line)",
+            flexShrink: 0,
+          }}
         />
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`px-2 py-0.5 text-xs rounded-full ${themeBadgeColor(data.image.theme)}`}>
-              {themeLabel(data.image.theme)}
-            </span>
-            <span className="text-xs text-gray-400">
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+            {theme && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "2px 9px",
+                  borderRadius: 999,
+                  background: theme.soft,
+                  color: theme.accent,
+                  border: `1px solid ${theme.accent}20`,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent }} />
+                {theme.label}
+              </span>
+            )}
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
               {data.completedAt ? new Date(data.completedAt).toLocaleDateString() : ""}
             </span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {total}<span className="text-lg font-normal text-gray-400">/30</span>
-          </p>
+          <div
+            className="display"
+            style={{
+              fontSize: 40,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              lineHeight: 1,
+              color: hue.color,
+            }}
+          >
+            {total}
+            <span style={{ fontSize: 18, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-6 -mb-px">
+      <div style={{ borderBottom: "1px solid var(--line)", marginBottom: 24 }}>
+        <nav style={{ display: "flex", gap: 28, marginBottom: -1, flexWrap: "wrap" }}>
           {tabs
             .filter((t) => t.show)
             .map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t.key
-                    ? "border-indigo-600 text-indigo-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
+                style={{
+                  padding: "12px 0 14px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  borderBottom: tab === t.key ? "2px solid var(--ink)" : "2px solid transparent",
+                  color: tab === t.key ? "var(--ink)" : "var(--ink-3)",
+                  cursor: "pointer",
+                }}
               >
                 {t.label}
               </button>
@@ -188,7 +229,6 @@ export default function TeacherSessionDetailPage() {
         </nav>
       </div>
 
-      {/* Tab content */}
       {tab === "feedback" && (
         <FeedbackView
           feedback={data.feedback}
@@ -206,20 +246,33 @@ export default function TeacherSessionDetailPage() {
 
       {tab === "violations" && hasViolations && (
         <div>
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-            <p className="text-sm text-red-700 font-medium">
+          <div
+            className="card"
+            style={{
+              padding: 18,
+              marginBottom: 16,
+              background: "var(--rose-soft)",
+              borderColor: "oklch(0.82 0.09 25)",
+            }}
+          >
+            <p style={{ fontSize: 14, color: "oklch(0.42 0.14 25)", fontWeight: 500, margin: 0 }}>
               {data.violations.length} violation{data.violations.length !== 1 ? "s" : ""} detected during this session
             </p>
           </div>
-          <div className="space-y-2">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.violations.map((v) => (
-              <div key={v.id} className="bg-white rounded-xl border border-gray-200 px-5 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 text-xs font-medium bg-red-50 text-red-600 rounded-full">
-                    {v.type.replace("_", " ")}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-400">
+              <div
+                key={v.id}
+                className="card-soft"
+                style={{
+                  padding: "12px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span className="badge badge-rose">{v.type.replace("_", " ")}</span>
+                <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
                   {new Date(v.timestamp).toLocaleTimeString()}
                 </span>
               </div>
@@ -229,33 +282,57 @@ export default function TeacherSessionDetailPage() {
       )}
 
       {tab === "override" && (
-        <div className="space-y-6">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {CRITERIA.map((c) => {
             const existing = overrides[c.key] as OverrideEntry | undefined;
             const currentScore = data[c.field];
 
             return (
-              <div key={c.key} className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">{c.label}</h3>
-                  <span className="text-sm text-gray-500">
-                    Current: <span className="font-semibold text-gray-900">{currentScore ?? "—"}</span>/{c.max}
+              <div key={c.key} className="card" style={{ padding: 22 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                  }}
+                >
+                  <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+                    {c.label}
+                  </h3>
+                  <span style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                    Current:{" "}
+                    <span className="mono" style={{ fontWeight: 600, color: "var(--ink)" }}>
+                      {currentScore ?? "—"}
+                    </span>
+                    /{c.max}
                   </span>
                 </div>
 
                 {existing && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                    <p className="text-xs text-amber-700">
-                      Overridden from <span className="line-through">{existing.originalScore}</span> to{" "}
-                      <span className="font-semibold">{existing.newScore}</span>
+                  <div
+                    style={{
+                      background: "var(--gold-soft)",
+                      border: "1px solid oklch(0.82 0.09 65)",
+                      borderRadius: 10,
+                      padding: "10px 14px",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <p style={{ fontSize: 12, color: "oklch(0.42 0.13 65)", margin: 0 }}>
+                      Overridden from{" "}
+                      <span style={{ textDecoration: "line-through" }}>{existing.originalScore}</span> to{" "}
+                      <strong>{existing.newScore}</strong>
                     </p>
-                    <p className="text-xs text-amber-600 mt-0.5">{existing.justification}</p>
+                    <p style={{ fontSize: 12, color: "oklch(0.42 0.13 65)", margin: "4px 0 0" }}>
+                      {existing.justification}
+                    </p>
                   </div>
                 )}
 
-                <div className="flex items-start gap-3">
-                  <div className="w-24 shrink-0">
-                    <label className="text-xs text-gray-500 block mb-1">New Score</label>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+                  <div style={{ width: 90, flexShrink: 0 }}>
+                    <label className="label">New score</label>
                     <input
                       type="number"
                       min={0}
@@ -265,11 +342,11 @@ export default function TeacherSessionDetailPage() {
                       onChange={(e) =>
                         setOverrideScores((prev) => ({ ...prev, [c.key]: e.target.value }))
                       }
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="input"
                     />
                   </div>
-                  <div className="flex-1">
-                    <label className="text-xs text-gray-500 block mb-1">Justification</label>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <label className="label">Justification</label>
                     <textarea
                       value={overrideJustifications[c.key] || ""}
                       onChange={(e) =>
@@ -278,12 +355,13 @@ export default function TeacherSessionDetailPage() {
                           [c.key]: e.target.value,
                         }))
                       }
-                      placeholder="Explain the reason for this override..."
+                      placeholder="Explain the reason for this override…"
                       rows={2}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="input"
+                      style={{ resize: "none" }}
                     />
                   </div>
-                  <div className="shrink-0 pt-5">
+                  <div style={{ paddingTop: 22, flexShrink: 0 }}>
                     <button
                       onClick={() => submitOverride(c.key)}
                       disabled={
@@ -291,13 +369,21 @@ export default function TeacherSessionDetailPage() {
                         !overrideJustifications[c.key]?.trim() ||
                         overrideSaving === c.key
                       }
-                      className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      className="btn-primary"
+                      style={{
+                        opacity:
+                          !overrideScores[c.key] ||
+                          !overrideJustifications[c.key]?.trim() ||
+                          overrideSaving === c.key
+                            ? 0.5
+                            : 1,
+                      }}
                     >
                       {overrideSaving === c.key
-                        ? "Saving..."
+                        ? "Saving…"
                         : overrideSuccess === c.key
-                          ? "Saved!"
-                          : "Save"}
+                        ? "Saved!"
+                        : "Save"}
                     </button>
                   </div>
                 </div>

@@ -14,14 +14,11 @@ type SessionItem = {
   prepStartedAt: string | null;
   completedAt: string | null;
   createdAt: string;
-  image: {
-    url: string;
-    theme: string;
-  };
+  image: { url: string; theme: string };
 };
 
 const THEMES = [
-  { value: "", label: "All Themes" },
+  { value: "", label: "All themes" },
   { value: "IDENTITIES", label: "Identities" },
   { value: "EXPERIENCES", label: "Experiences" },
   { value: "HUMAN_INGENUITY", label: "Human Ingenuity" },
@@ -30,10 +27,10 @@ const THEMES = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "Newest First" },
-  { value: "oldest", label: "Oldest First" },
-  { value: "highest", label: "Highest Score" },
-  { value: "lowest", label: "Lowest Score" },
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "highest", label: "Highest score" },
+  { value: "lowest", label: "Lowest score" },
 ];
 
 function totalScore(s: SessionItem) {
@@ -41,10 +38,10 @@ function totalScore(s: SessionItem) {
   return (s.scoreA ?? 0) + (s.scoreB1 ?? 0) + (s.scoreB2 ?? 0) + (s.scoreC ?? 0);
 }
 
-function scoreColor(total: number) {
-  if (total >= 20) return "text-green-600";
-  if (total >= 12) return "text-yellow-600";
-  return "text-red-500";
+function scoreHue(total: number) {
+  if (total >= 20) return { color: "oklch(0.4 0.1 155)", bg: "var(--sage-soft)", border: "oklch(0.82 0.07 155)" };
+  if (total >= 12) return { color: "oklch(0.42 0.13 65)", bg: "var(--gold-soft)", border: "oklch(0.82 0.09 65)" };
+  return { color: "oklch(0.42 0.14 25)", bg: "var(--rose-soft)", border: "oklch(0.82 0.09 25)" };
 }
 
 function formatDuration(start: string | null, end: string | null) {
@@ -77,11 +74,7 @@ export default function HistoryPage() {
 
   const filtered = useCallback(() => {
     let result = [...sessions];
-
-    if (themeFilter) {
-      result = result.filter((s) => s.image.theme === themeFilter);
-    }
-
+    if (themeFilter) result = result.filter((s) => s.image.theme === themeFilter);
     switch (sort) {
       case "oldest":
         result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -95,7 +88,6 @@ export default function HistoryPage() {
       default:
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-
     return result;
   }, [sessions, themeFilter, sort]);
 
@@ -105,43 +97,53 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading...
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          color: "var(--ink-3)",
+          fontSize: 14,
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-1">Session History</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        {sessions.length} session{sessions.length !== 1 ? "s" : ""} total
-      </p>
+      <div style={{ marginBottom: 28 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Your sessions</div>
+        <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 38px)", margin: 0 }}>
+          Session history
+        </h1>
+        <p style={{ color: "var(--ink-3)", marginTop: 8, fontSize: 14 }}>
+          {sessions.length} session{sessions.length !== 1 ? "s" : ""} total
+        </p>
+      </div>
 
       {sessions.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-500 mb-4">No practice sessions yet.</p>
-          <Link
-            href="/student/practice"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Start Your First Practice
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", marginBottom: 16 }}>
+            No practice sessions yet.
+          </p>
+          <Link href="/student/practice" className="btn-primary">
+            Start your first practice →
           </Link>
         </div>
       ) : (
         <>
-          {/* Filter/Sort bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <select
               value={themeFilter}
-              onChange={(e) => { setThemeFilter(e.target.value); setVisibleCount(10); }}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => {
+                setThemeFilter(e.target.value);
+                setVisibleCount(10);
+              }}
+              className="input"
+              style={{ width: "auto", minWidth: 180, fontSize: 13, padding: "8px 12px" }}
             >
               {THEMES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -150,63 +152,91 @@ export default function HistoryPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="input"
+              style={{ width: "auto", minWidth: 160, fontSize: 13, padding: "8px 12px" }}
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
             {themeFilter && (
-              <span className="text-xs text-gray-500">
+              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
                 {displayedSessions.length} result{displayedSessions.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
 
           {displayedSessions.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <p className="text-sm text-gray-500">No sessions match this filter.</p>
+            <div className="card" style={{ padding: 40, textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+                No sessions match this filter.
+              </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {visible.map((s) => {
-                const theme = themeColors[s.image.theme] || {
-                  bg: "bg-gray-100",
-                  text: "text-gray-700",
-                  label: s.image.theme,
-                };
+                const theme = themeColors[s.image.theme];
                 const total = totalScore(s);
                 const roundedTotal = total !== null ? Math.round(total * 10) / 10 : null;
                 const duration = formatDuration(s.prepStartedAt, s.completedAt);
                 const isTerminated = s.status === "TERMINATED";
+                const hue = roundedTotal !== null ? scoreHue(roundedTotal) : null;
 
                 return (
                   <Link
                     key={s.id}
                     href={`/student/history/${s.id}`}
-                    className="flex items-center gap-4 bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors"
+                    className="card-soft"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: "14px 18px",
+                    }}
                   >
-                    {/* Image thumbnail */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={s.image.url}
                       alt=""
-                      className="w-12 h-12 rounded-lg object-cover bg-gray-100 shrink-0"
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        objectFit: "cover",
+                        background: "var(--paper-2)",
+                        border: "1px solid var(--line)",
+                        flexShrink: 0,
+                      }}
                     />
 
-                    {/* Middle: theme, date, duration */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 ${theme.bg} ${theme.text}`}>
-                          {theme.label}
-                        </span>
-                        {isTerminated && (
-                          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-600">
-                            Terminated
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        {theme && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                              padding: "2px 9px",
+                              borderRadius: 999,
+                              background: theme.soft,
+                              color: theme.accent,
+                              border: `1px solid ${theme.accent}20`,
+                              fontSize: 11.5,
+                              fontWeight: 500,
+                            }}
+                          >
+                            <span
+                              style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent }}
+                            />
+                            {theme.label}
                           </span>
                         )}
+                        {isTerminated && (
+                          <span className="badge badge-rose">Terminated</span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-3)" }}>
                         <span>
                           {new Date(s.createdAt).toLocaleDateString("en-US", {
                             month: "short",
@@ -216,33 +246,54 @@ export default function HistoryPage() {
                         </span>
                         {duration && (
                           <>
-                            <span className="text-gray-300">·</span>
-                            <span>{duration}</span>
+                            <span style={{ color: "var(--ink-4)" }}>·</span>
+                            <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{duration}</span>
                           </>
                         )}
                       </div>
                     </div>
 
-                    {/* Right: scores */}
-                    <div className="shrink-0 text-right">
-                      {roundedTotal !== null ? (
+                    <div style={{ flexShrink: 0, textAlign: "right" }}>
+                      {roundedTotal !== null && hue ? (
                         <>
-                          <p className={`text-lg font-semibold ${scoreColor(roundedTotal)}`}>
-                            {roundedTotal}<span className="text-sm font-normal text-gray-400">/30</span>
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-gray-400">A:{s.scoreA}</span>
-                            <span className="text-xs text-gray-400">B1:{s.scoreB1}</span>
-                            <span className="text-xs text-gray-400">B2:{s.scoreB2}</span>
-                            <span className="text-xs text-gray-400">C:{s.scoreC}</span>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              background: hue.bg,
+                              color: hue.color,
+                              border: `1px solid ${hue.border}`,
+                            }}
+                          >
+                            {roundedTotal}/30
+                          </span>
+                          <div
+                            className="mono"
+                            style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4, fontSize: 10, color: "var(--ink-4)" }}
+                          >
+                            <span>A:{s.scoreA}</span>
+                            <span>B1:{s.scoreB1}</span>
+                            <span>B2:{s.scoreB2}</span>
+                            <span>C:{s.scoreC}</span>
                           </div>
                         </>
                       ) : (
-                        <span className="text-sm text-gray-400">—</span>
+                        <span style={{ fontSize: 13, color: "var(--ink-4)" }}>—</span>
                       )}
                     </div>
 
-                    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <svg
+                      width={14}
+                      height={14}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      strokeWidth={2}
+                      stroke="var(--ink-4)"
+                      style={{ flexShrink: 0 }}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                   </Link>
@@ -252,12 +303,12 @@ export default function HistoryPage() {
           )}
 
           {hasMore && (
-            <div className="text-center mt-4">
+            <div style={{ textAlign: "center", marginTop: 20 }}>
               <button
                 onClick={() => setVisibleCount((c) => c + 10)}
-                className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                className="btn-ghost"
               >
-                Load More ({displayedSessions.length - visibleCount} remaining)
+                Load more ({displayedSessions.length - visibleCount} remaining)
               </button>
             </div>
           )}

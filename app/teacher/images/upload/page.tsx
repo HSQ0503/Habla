@@ -51,7 +51,6 @@ export default function UploadPage() {
     setError("");
     setAnalysisError("");
 
-    // Upload to Vercel Blob immediately so we have a public URL for analysis
     setAnalyzing(true);
     try {
       const formData = new FormData();
@@ -72,7 +71,6 @@ export default function UploadPage() {
       const { url } = await uploadRes.json();
       setImageUrl(url);
 
-      // Now analyze with GPT-4o Vision
       const analyzeRes = await fetch("/api/images/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -82,14 +80,8 @@ export default function UploadPage() {
       if (analyzeRes.ok) {
         const { analysis } = await analyzeRes.json();
         setAiAnalysis(analysis);
-
-        // Pre-fill form fields
-        if (analysis.culturalContext) {
-          setCulturalContext(analysis.culturalContext);
-        }
-        if (analysis.talkingPoints?.length) {
-          setTalkingPoints(analysis.talkingPoints);
-        }
+        if (analysis.culturalContext) setCulturalContext(analysis.culturalContext);
+        if (analysis.talkingPoints?.length) setTalkingPoints(analysis.talkingPoints);
         if (analysis.suggestedTheme && themes.some((t) => t.value === analysis.suggestedTheme)) {
           setTheme(analysis.suggestedTheme);
         }
@@ -146,12 +138,10 @@ export default function UploadPage() {
       setError("Please select an image");
       return;
     }
-
     if (!culturalContext.trim()) {
       setError("Cultural context is required");
       return;
     }
-
     const filteredPoints = talkingPoints.filter((p) => p.trim());
     if (filteredPoints.length < 2) {
       setError("At least 2 talking points are required");
@@ -159,7 +149,6 @@ export default function UploadPage() {
     }
 
     setUploading(true);
-
     try {
       const createRes = await fetch("/api/images", {
         method: "POST",
@@ -193,33 +182,44 @@ export default function UploadPage() {
 
   if (submitted) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
-            <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <div style={{ maxWidth: 460, margin: "48px auto 0" }}>
+        <div className="card" style={{ padding: 36, textAlign: "center" }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--sage-soft)",
+              border: "1.5px solid oklch(0.82 0.07 155)",
+              margin: "0 auto 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="oklch(0.5 0.14 155)">
               <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Submitted for Review</h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <h2 className="display" style={{ fontSize: 22, margin: "0 0 8px" }}>
+            Submitted for review
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", marginBottom: 24 }}>
             Your image has been submitted to the global library and will be reviewed by an admin before becoming available to all students.
           </p>
-          <div className="flex gap-3 justify-center">
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <button
               onClick={() => {
                 setSubmitted(false);
                 clearFile();
                 setScope("CLASS");
               }}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              className="btn-primary"
             >
-              Upload Another
+              Upload another
             </button>
-            <button
-              onClick={() => router.push("/teacher/images")}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              View Library
+            <button onClick={() => router.push("/teacher/images")} className="btn-ghost">
+              View library
             </button>
           </div>
         </div>
@@ -228,47 +228,89 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Upload New Image</h1>
-        <p className="mt-1 text-sm text-gray-500">
+    <div style={{ maxWidth: 720 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>New submission</div>
+        <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 38px)", margin: 0 }}>
+          Upload an image.
+        </h1>
+        <p style={{ color: "var(--ink-3)", marginTop: 8, fontSize: 15 }}>
           Add a culturally relevant image for student speaking practice.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: 22 }}
+      >
         {error && (
-          <div className="flex items-center gap-2.5 bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-lg">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-            </svg>
+          <div
+            style={{
+              background: "var(--rose-soft)",
+              border: "1px solid oklch(0.82 0.09 25)",
+              color: "oklch(0.42 0.14 25)",
+              fontSize: 13,
+              padding: "10px 14px",
+              borderRadius: 10,
+            }}
+          >
             {error}
           </div>
         )}
 
-        {/* Image upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Image
-          </label>
+          <label className="label">Image</label>
           {preview ? (
-            <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-              <div className="relative h-64">
+            <div
+              style={{
+                position: "relative",
+                borderRadius: 14,
+                overflow: "hidden",
+                border: "1px solid var(--line)",
+                background: "var(--paper-2)",
+              }}
+            >
+              <div style={{ position: "relative", height: 260 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview}
                   alt="Preview"
-                  className="w-full h-full object-contain"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
               </div>
               {analyzing && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                  <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-lg shadow-sm border border-gray-200">
-                    <svg className="animate-spin h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700">Analyzing image with AI...</span>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "oklch(from var(--paper) l c h / 0.82)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div
+                    className="card-soft"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "10px 18px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        border: "2px solid var(--accent)",
+                        borderTopColor: "transparent",
+                        animation: "habla-pulse-dot 1.2s ease-in-out infinite",
+                      }}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-2)" }}>
+                      Analyzing image with AI…
+                    </span>
                   </div>
                 </div>
               )}
@@ -276,9 +318,19 @@ export default function UploadPage() {
                 <button
                   type="button"
                   onClick={clearFile}
-                  className="absolute top-3 right-3 p-1.5 bg-white/90 rounded-lg shadow-sm hover:bg-white text-gray-600 transition-colors"
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    padding: 6,
+                    background: "var(--paper)",
+                    border: "1px solid var(--line)",
+                    borderRadius: 8,
+                    color: "var(--ink-2)",
+                    cursor: "pointer",
+                  }}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -286,24 +338,42 @@ export default function UploadPage() {
             </div>
           ) : (
             <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-                dragOver
-                  ? "border-indigo-400 bg-indigo-50"
-                  : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
-              }`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 200,
+                border: `1.5px dashed ${dragOver ? "var(--accent)" : "var(--line)"}`,
+                borderRadius: 14,
+                background: dragOver ? "var(--accent-softer)" : "var(--paper-2)",
+                cursor: "pointer",
+                transition: "border-color 150ms ease, background 150ms ease",
+              }}
             >
-              <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <svg
+                width={32}
+                height={32}
+                viewBox="0 0 24 24"
+                fill="none"
+                strokeWidth={1.5}
+                stroke="var(--ink-4)"
+                style={{ marginBottom: 8 }}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm text-gray-500 font-medium">
+              <p style={{ fontSize: 14, color: "var(--ink-2)", fontWeight: 500, margin: 0 }}>
                 Drop an image here or click to browse
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                PNG, JPG, WEBP up to 10MB
+              <p style={{ fontSize: 12, color: "var(--ink-4)", margin: "6px 0 0" }}>
+                PNG, JPG, WEBP up to 10 MB
               </p>
             </div>
           )}
@@ -312,80 +382,112 @@ export default function UploadPage() {
             type="file"
             accept="image/*"
             onChange={handleFileInput}
-            className="hidden"
+            style={{ display: "none" }}
           />
         </div>
 
-        {/* Analysis status messages */}
         {analysisError && (
-          <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-100 text-amber-700 text-sm px-4 py-3 rounded-lg">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
+          <div
+            style={{
+              background: "var(--gold-soft)",
+              border: "1px solid oklch(0.82 0.09 65)",
+              color: "oklch(0.42 0.13 65)",
+              fontSize: 13,
+              padding: "10px 14px",
+              borderRadius: 10,
+            }}
+          >
             {analysisError}
           </div>
         )}
 
         {aiAnalysis && !analyzing && (
-          <div className="bg-green-50 border border-green-100 text-green-700 text-sm px-4 py-3 rounded-lg">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
-              <span>AI analysis complete — fields have been pre-filled. Review and edit as needed.</span>
-            </div>
+          <div
+            style={{
+              background: "var(--sage-soft)",
+              border: "1px solid oklch(0.82 0.07 155)",
+              color: "oklch(0.4 0.1 155)",
+              fontSize: 13,
+              padding: "10px 14px",
+              borderRadius: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+            AI analysis complete — fields have been pre-filled. Review and edit as needed.
           </div>
         )}
 
-        {/* AI Analysis Details (collapsible) */}
         {aiAnalysis && !analyzing && (
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="card" style={{ overflow: "hidden" }}>
             <button
               type="button"
               onClick={() => setAnalysisExpanded(!analysisExpanded)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 18px",
+                background: "var(--paper-2)",
+                border: "none",
+                borderBottom: analysisExpanded ? "1px solid var(--line)" : "none",
+                cursor: "pointer",
+                textAlign: "left",
+                color: "var(--ink-2)",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
             >
-              <span className="text-sm font-medium text-gray-700">AI Analysis Details</span>
+              AI analysis details
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform ${analysisExpanded ? "rotate-180" : ""}`}
-                fill="none"
+                width={14}
+                height={14}
                 viewBox="0 0 24 24"
+                fill="none"
                 strokeWidth={2}
                 stroke="currentColor"
+                style={{ transform: analysisExpanded ? "rotate(180deg)" : "none", transition: "transform 200ms" }}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
               </svg>
             </button>
             {analysisExpanded && (
-              <div className="px-4 py-4 space-y-4 text-sm bg-white">
+              <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
                 {aiAnalysis.description && (
                   <div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Description</p>
-                    <p className="text-gray-700 leading-relaxed">{aiAnalysis.description}</p>
+                    <div className="eyebrow" style={{ fontSize: 10, marginBottom: 4 }}>Description</div>
+                    <p style={{ fontSize: 13, color: "var(--ink-2)", margin: 0, lineHeight: 1.5 }}>
+                      {aiAnalysis.description}
+                    </p>
                   </div>
                 )}
                 {aiAnalysis.themes && aiAnalysis.themes.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Related Themes</p>
-                    <ul className="list-disc list-inside text-gray-700 space-y-1">
+                    <div className="eyebrow" style={{ fontSize: 10, marginBottom: 4 }}>Related themes</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
                       {aiAnalysis.themes.map((t, i) => <li key={i}>{t}</li>)}
                     </ul>
                   </div>
                 )}
                 {aiAnalysis.deeperQuestions && aiAnalysis.deeperQuestions.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Deeper Questions</p>
-                    <ul className="list-disc list-inside text-gray-700 space-y-1">
+                    <div className="eyebrow" style={{ fontSize: 10, marginBottom: 4 }}>Deeper questions</div>
+                    <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
                       {aiAnalysis.deeperQuestions.map((q, i) => <li key={i}>{q}</li>)}
                     </ul>
                   </div>
                 )}
                 {aiAnalysis.vocabularyHints && aiAnalysis.vocabularyHints.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Vocabulary Hints</p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="eyebrow" style={{ fontSize: 10, marginBottom: 4 }}>Vocabulary hints</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {aiAnalysis.vocabularyHints.map((v, i) => (
-                        <span key={i} className="inline-flex px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">
+                        <span key={i} className="badge badge-accent" style={{ fontSize: 11 }}>
                           {v}
                         </span>
                       ))}
@@ -397,124 +499,174 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* AI Description (read-only, for teacher reference) */}
         {aiAnalysis?.description && !analyzing && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              AI Image Description <span className="text-xs font-normal text-gray-400">(read-only — used by the AI examiner)</span>
+            <label className="label">
+              AI image description{" "}
+              <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-4)" }}>
+                (read-only — used by the AI examiner)
+              </span>
             </label>
-            <div className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 leading-relaxed">
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "var(--paper-2)",
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+                fontSize: 13,
+                color: "var(--ink-2)",
+                lineHeight: 1.5,
+              }}
+            >
               {aiAnalysis.description}
             </div>
           </div>
         )}
 
-        {/* Library scope */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Add to Library
-          </label>
-          <div className="flex gap-3">
+          <label className="label">Add to library</label>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => setScope("CLASS")}
-              className={`flex-1 px-4 py-3 rounded-lg border-2 text-left transition-colors ${
-                scope === "CLASS"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-gray-200 bg-white hover:border-gray-300"
-              }`}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: 14,
+                textAlign: "left",
+                borderRadius: 12,
+                border: `1.5px solid ${scope === "CLASS" ? "var(--accent)" : "var(--line)"}`,
+                background: scope === "CLASS" ? "var(--accent-softer)" : "var(--card)",
+                cursor: "pointer",
+              }}
             >
-              <p className={`text-sm font-medium ${scope === "CLASS" ? "text-indigo-900" : "text-gray-900"}`}>
-                Class Library
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: scope === "CLASS" ? "var(--accent-2)" : "var(--ink)",
+                  margin: 0,
+                }}
+              >
+                Class library
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "4px 0 0" }}>
                 Available to your students immediately
               </p>
             </button>
             <button
               type="button"
               onClick={() => setScope("GLOBAL")}
-              className={`flex-1 px-4 py-3 rounded-lg border-2 text-left transition-colors ${
-                scope === "GLOBAL"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-gray-200 bg-white hover:border-gray-300"
-              }`}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                padding: 14,
+                textAlign: "left",
+                borderRadius: 12,
+                border: `1.5px solid ${scope === "GLOBAL" ? "var(--accent)" : "var(--line)"}`,
+                background: scope === "GLOBAL" ? "var(--accent-softer)" : "var(--card)",
+                cursor: "pointer",
+              }}
             >
-              <p className={`text-sm font-medium ${scope === "GLOBAL" ? "text-indigo-900" : "text-gray-900"}`}>
-                Global Library
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: scope === "GLOBAL" ? "var(--accent-2)" : "var(--ink)",
+                  margin: 0,
+                }}
+              >
+                Global library
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "4px 0 0" }}>
                 Reviewed before available to all students
               </p>
             </button>
           </div>
           {scope === "GLOBAL" && (
-            <p className="text-xs text-amber-600 mt-2">
+            <p style={{ fontSize: 12, color: "oklch(0.42 0.13 65)", marginTop: 8, marginBottom: 0 }}>
               Global submissions are reviewed before becoming available to all students.
             </p>
           )}
         </div>
 
-        {/* Theme */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            IB Theme
+          <label className="label">
+            IB theme
             {aiAnalysis?.suggestedTheme && (
-              <span className="ml-2 text-xs font-normal text-gray-400">
-                (AI suggested: {themes.find((t) => t.value === aiAnalysis.suggestedTheme)?.label || aiAnalysis.suggestedTheme})
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, color: "var(--ink-4)" }}>
+                (AI suggested:{" "}
+                {themes.find((t) => t.value === aiAnalysis.suggestedTheme)?.label ||
+                  aiAnalysis.suggestedTheme})
               </span>
             )}
           </label>
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+            className="input"
           >
             {themes.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Cultural context */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Cultural Context
-          </label>
+          <label className="label">Cultural context</label>
           <textarea
             value={culturalContext}
             onChange={(e) => setCulturalContext(e.target.value)}
             rows={4}
             required
-            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
-            placeholder="Describe what the image depicts culturally and its relevance to the IB theme..."
+            className="input"
+            style={{ resize: "none" }}
+            placeholder="Describe what the image depicts culturally and its relevance to the IB theme…"
           />
         </div>
 
-        {/* Talking points */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Talking Points <span className="text-gray-400 font-normal">(min 2)</span>
+          <label className="label">
+            Talking points{" "}
+            <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-4)" }}>(min 2)</span>
           </label>
-          <div className="space-y-2">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {talkingPoints.map((point, i) => (
-              <div key={i} className="flex gap-2">
-                <div className="flex items-center justify-center w-6 h-10 text-xs text-gray-400 font-medium">
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span
+                  className="mono"
+                  style={{
+                    minWidth: 20,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--ink-4)",
+                    textAlign: "right",
+                  }}
+                >
                   {i + 1}.
-                </div>
+                </span>
                 <input
                   value={point}
                   onChange={(e) => updatePoint(i, e.target.value)}
-                  className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                  placeholder="Enter a discussion question or prompt..."
+                  placeholder="Enter a discussion question or prompt…"
+                  className="input"
+                  style={{ flex: 1 }}
                 />
                 {talkingPoints.length > 2 && (
                   <button
                     type="button"
                     onClick={() => removePoint(i)}
-                    className="px-2 text-gray-400 hover:text-red-500 transition-colors"
+                    style={{
+                      padding: 4,
+                      color: "var(--ink-4)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -525,35 +677,34 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => setTalkingPoints([...talkingPoints, ""])}
-            className="mt-2 text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            style={{
+              marginTop: 10,
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--accent)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
           >
-            + Add Another
+            + Add another
           </button>
         </div>
 
-        {/* Submit */}
-        <div className="flex items-center gap-3 pt-2">
+        <div style={{ display: "flex", gap: 10, paddingTop: 6 }}>
           <button
             type="submit"
             disabled={uploading || analyzing}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+            className="btn-primary"
+            style={{ opacity: uploading || analyzing ? 0.5 : 1 }}
           >
-            {uploading ? (
-              <>
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Saving...
-              </>
-            ) : (
-              "Save Image"
-            )}
+            {uploading ? "Saving…" : "Save image"}
           </button>
           <button
             type="button"
             onClick={() => router.push("/teacher/images")}
-            className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="btn-ghost"
           >
             Cancel
           </button>

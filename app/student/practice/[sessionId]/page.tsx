@@ -26,13 +26,31 @@ type SessionData = {
   transcript: { role: string; content: string }[];
 };
 
+function FullPageFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="habla-ui"
+      style={{
+        minHeight: "100vh",
+        background: "var(--paper)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const router = useRouter();
   const [session, setSession] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"voice" | "text">(() => shouldUseVoice() ? "voice" : "text");
+  const [mode, setMode] = useState<"voice" | "text">(() => (shouldUseVoice() ? "voice" : "text"));
   const [micReady, setMicReady] = useState(false);
   const [voicePhaseOverride, setVoicePhaseOverride] = useState<string | null>(null);
 
@@ -69,94 +87,75 @@ export default function SessionPage() {
     setSession(updated);
   }
 
-  // PREPARING → PRESENTING transition
   const handlePrepAdvance = useCallback(async () => {
     await advanceSession("PRESENTING");
     if (mode === "voice") {
       await voice.connect();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, sessionId]);
 
-  // PRESENTING → CONVERSING transition (voice mode)
-  const handleVoicePresentAdvance = useCallback(async (presentationText: string) => {
-    setVoicePhaseOverride("PRESENTING");
+  const handleVoicePresentAdvance = useCallback(
+    async (presentationText: string) => {
+      setVoicePhaseOverride("PRESENTING");
+      voice.pauseAutoSave();
 
-    // Pause auto-save to prevent race conditions during the transition
-    voice.pauseAutoSave();
+      const voiceEntries = voice.getTranscript().filter((m) => m.role === "student");
+      if (voiceEntries.length > 0) {
+        await fetch(`/api/sessions/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript: voiceEntries }),
+        });
+      }
 
-    // 1. Save voice transcript before advancing — use getTranscript() (ref-based, always fresh)
-    //    instead of voice.transcript (React state, may be stale in this closure)
-    const voiceEntries = voice.getTranscript().filter((m) => m.role === "student");
-    if (voiceEntries.length > 0) {
-      await fetch(`/api/sessions/${sessionId}`, {
-        method: "PATCH",
+      await advanceSession("CONVERSING", presentationText);
+
+      const res = await fetch("/api/realtime/instructions", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: voiceEntries }),
+        body: JSON.stringify({ sessionId }),
       });
-    }
 
-    // 2. Advance server state (saves presentation text to DB atomically)
-    await advanceSession("CONVERSING", presentationText);
+      if (!res.ok) {
+        console.error("[SESSION] Failed to fetch conversation instructions");
+        setError("Failed to load conversation instructions. Please try again.");
+        setVoicePhaseOverride(null);
+        voice.resumeAutoSave();
+        return;
+      }
 
-    // 3. Fetch conversation instructions (server builds prompt with presentation text + aiAnalysis)
-    const res = await fetch("/api/realtime/instructions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId }),
-    });
+      const { instructions } = await res.json();
 
-    if (!res.ok) {
-      console.error("[SESSION] Failed to fetch conversation instructions");
-      setError("Failed to load conversation instructions. Please try again.");
-      setVoicePhaseOverride(null);
+      voice.setPresentationMode(false);
+      voice.clearTranscript();
       voice.resumeAutoSave();
-      return;
-    }
 
-    const { instructions } = await res.json();
+      voice.updateSession({
+        instructions,
+        turnDetection: {
+          type: "server_vad",
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 800,
+        },
+      });
 
-    // 4. Disable presentation mode — allow AI to speak in conversation
-    voice.setPresentationMode(false);
+      voice.triggerResponse(
+        "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
+      );
 
-    // 5. Clear presentation-phase transcript so those entries don't appear as conversation messages
-    voice.clearTranscript();
+      voice.clearError();
+      setVoicePhaseOverride(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionId]);
 
-    // 6. Resume auto-save now that transcript is cleared and presentation text is safely in DB
-    voice.resumeAutoSave();
-
-    // 7. Update AI instructions and enable turn detection for conversation
-    voice.updateSession({
-      instructions,
-      turnDetection: {
-        type: "server_vad",
-        threshold: 0.5,
-        prefix_padding_ms: 300,
-        silence_duration_ms: 800,
-      },
-    });
-
-    // 8. Trigger first examiner question
-    voice.triggerResponse(
-      "The student has finished their presentation. Ask your first follow-up question referencing something specific from their presentation."
-    );
-
-    // 9. Clear any transient errors from session reconfiguration before showing conversation UI
-    voice.clearError();
-
-    // 10. Release display lock
-    setVoicePhaseOverride(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
-  // Voice conversation completion
   const handleVoiceComplete = useCallback(async () => {
     await voice.disconnect();
     await advanceSession("COMPLETED");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // Text mode fallback during conversation
   const handleFallbackToText = useCallback(async () => {
     await voice.disconnect();
     setMode("text");
@@ -165,84 +164,117 @@ export default function SessionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading session...
-        </div>
-      </div>
+      <FullPageFrame>
+        <div style={{ color: "var(--ink-3)", fontSize: 14 }}>Loading session…</div>
+      </FullPageFrame>
     );
   }
 
   if (error || !session) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">{error || "Something went wrong"}</p>
+      <FullPageFrame>
+        <div className="card" style={{ padding: 32, maxWidth: 400, textAlign: "center" }}>
+          <p style={{ color: "var(--ink-3)", fontSize: 14, marginBottom: 16 }}>
+            {error || "Something went wrong"}
+          </p>
           <button
             onClick={() => router.push("/student/dashboard")}
-            className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            className="btn-primary"
           >
-            Return to Dashboard
+            Return to dashboard
           </button>
         </div>
-      </div>
+      </FullPageFrame>
     );
   }
 
   if (session.status === "COMPLETED") {
     router.push(`/student/history/${session.id}`);
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white rounded-xl border border-gray-200 p-8 max-w-sm">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center">
-            <svg className="animate-spin h-7 w-7 text-indigo-500" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Analyzing your performance...</h2>
-          <p className="text-sm text-gray-500">Redirecting to your results...</p>
+      <FullPageFrame>
+        <div className="card" style={{ padding: 36, maxWidth: 380, textAlign: "center" }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--indigo-softer)",
+              border: "1.5px solid var(--ink)",
+              margin: "0 auto 16px",
+            }}
+          />
+          <h2 className="display" style={{ fontSize: 22, margin: "0 0 8px" }}>
+            Analyzing your performance…
+          </h2>
+          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: 0 }}>
+            Redirecting to your results.
+          </p>
         </div>
-      </div>
+      </FullPageFrame>
     );
   }
 
   if (session.status === "TERMINATED") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white rounded-xl border border-gray-200 p-8 max-w-sm">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
-            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <FullPageFrame>
+        <div className="card" style={{ padding: 32, maxWidth: 400, textAlign: "center" }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              background: "var(--rose-soft)",
+              border: "1.5px solid oklch(0.82 0.09 25)",
+              margin: "0 auto 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="oklch(0.5 0.16 25)">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Session Terminated</h2>
-          <p className="text-sm text-gray-500 mb-4">This practice session has been ended.</p>
+          <h2 className="display" style={{ fontSize: 22, margin: "0 0 8px" }}>
+            Session terminated
+          </h2>
+          <p style={{ fontSize: 13.5, color: "var(--ink-3)", marginBottom: 16 }}>
+            This practice session has been ended.
+          </p>
           <button
             onClick={() => router.push("/student/dashboard")}
-            className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            className="btn-primary"
           >
-            Return to Dashboard
+            Return to dashboard
           </button>
         </div>
-      </div>
+      </FullPageFrame>
     );
   }
 
   const effectivePhase = voicePhaseOverride || session.status;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: "100vh", background: "var(--paper)" }}>
       {TEST_MODE && (
-        <div className="sticky top-0 z-50 bg-orange-500 text-white text-center text-xs font-medium py-1">
-          TEST MODE — Reduced timers active
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+            background: "oklch(0.62 0.13 65)",
+            color: "white",
+            textAlign: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            padding: "4px 0",
+            letterSpacing: "0.04em",
+          }}
+        >
+          TEST MODE — REDUCED TIMERS ACTIVE
         </div>
       )}
-      {/* PREPARING phase */}
+
       {effectivePhase === "PREPARING" && (
         <>
           {mode === "voice" && !micReady ? (
@@ -260,7 +292,6 @@ export default function SessionPage() {
         </>
       )}
 
-      {/* PRESENTING phase */}
       {effectivePhase === "PRESENTING" && (
         <>
           {mode === "voice" ? (
@@ -279,7 +310,6 @@ export default function SessionPage() {
         </>
       )}
 
-      {/* CONVERSING phase */}
       {effectivePhase === "CONVERSING" && (
         <>
           {mode === "voice" ? (

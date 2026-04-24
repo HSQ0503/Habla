@@ -33,7 +33,6 @@ export default function AdminPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null);
 
-  // Redirect non-admins
   useEffect(() => {
     if (status === "authenticated" && !session?.user?.isAdmin) {
       router.replace("/teacher/dashboard");
@@ -54,7 +53,9 @@ export default function AdminPage() {
       if (rejectedRes.ok) setRejected(await rejectedRes.json());
       setLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [session?.user?.isAdmin]);
 
   async function handleApprove(id: string) {
@@ -63,7 +64,10 @@ export default function AdminPage() {
     if (res.ok) {
       const updated = await res.json();
       setPending((prev) => prev.filter((i) => i.id !== id));
-      setApproved((prev) => [{ ...updated, creator: pending.find((i) => i.id === id)?.creator ?? null }, ...prev]);
+      setApproved((prev) => [
+        { ...updated, creator: pending.find((i) => i.id === id)?.creator ?? null },
+        ...prev,
+      ]);
     }
     setActing(null);
   }
@@ -79,7 +83,10 @@ export default function AdminPage() {
     if (res.ok) {
       const updated = await res.json();
       setPending((prev) => prev.filter((i) => i.id !== id));
-      setRejected((prev) => [{ ...updated, creator: pending.find((i) => i.id === id)?.creator ?? null }, ...prev]);
+      setRejected((prev) => [
+        { ...updated, creator: pending.find((i) => i.id === id)?.creator ?? null },
+        ...prev,
+      ]);
     }
     setRejectingId(null);
     setRejectReason("");
@@ -99,14 +106,16 @@ export default function AdminPage() {
 
   if (status === "loading" || !session?.user?.isAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading...
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          color: "var(--ink-3)",
+        }}
+      >
+        Loading…
       </div>
     );
   }
@@ -114,154 +123,242 @@ export default function AdminPage() {
   const tabData: Record<Tab, ImageRecord[]> = { pending, approved, rejected };
   const currentImages = tabData[tab];
 
+  const Tab = ({
+    value,
+    label,
+    count,
+    badge,
+  }: {
+    value: Tab;
+    label: string;
+    count: number;
+    badge?: boolean;
+  }) => {
+    const active = tab === value;
+    return (
+      <button
+        onClick={() => setTab(value)}
+        style={{
+          padding: "12px 0 14px",
+          fontSize: 14,
+          fontWeight: 500,
+          background: "none",
+          border: "none",
+          borderBottom: active ? "2px solid var(--ink)" : "2px solid transparent",
+          color: active ? "var(--ink)" : "var(--ink-3)",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+        }}
+      >
+        {label}
+        {badge && count > 0 && (
+          <span className="badge badge-gold" style={{ fontSize: 10 }}>
+            {count}
+          </span>
+        )}
+        {!badge && <span style={{ color: "var(--ink-4)", fontSize: 12 }}>({count})</span>}
+      </button>
+    );
+  };
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
+      <div style={{ marginBottom: 24 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Library curation</div>
+        <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 38px)", margin: 0 }}>
+          Admin console.
+        </h1>
+        <p style={{ color: "var(--ink-3)", marginTop: 8, fontSize: 15 }}>
           Review global image submissions and manage the shared library.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-6">
-          <button
-            onClick={() => setTab("pending")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-              tab === "pending"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Pending Review
-            {pending.length > 0 && (
-              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold bg-yellow-100 text-yellow-700 rounded-full">
-                {pending.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab("approved")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "approved"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Global Library ({approved.length})
-          </button>
-          <button
-            onClick={() => setTab("rejected")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              tab === "rejected"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Rejected ({rejected.length})
-          </button>
+      <div style={{ borderBottom: "1px solid var(--line)", marginBottom: 24 }}>
+        <nav style={{ display: "flex", gap: 28 }}>
+          <Tab value="pending" label="Pending review" count={pending.length} badge />
+          <Tab value="approved" label="Global library" count={approved.length} />
+          <Tab value="rejected" label="Rejected" count={rejected.length} />
         </nav>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
-              <div className="flex gap-4">
-                <div className="w-32 h-24 bg-gray-100 rounded-lg" />
-                <div className="flex-1 space-y-3">
-                  <div className="h-4 bg-gray-100 rounded w-1/3" />
-                  <div className="h-3 bg-gray-100 rounded w-full" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3" />
-                </div>
+            <div
+              key={i}
+              className="card"
+              style={{
+                padding: 18,
+                display: "flex",
+                gap: 16,
+                animation: "habla-pulse-dot 2s ease-in-out infinite",
+              }}
+            >
+              <div style={{ width: 128, height: 96, borderRadius: 10, background: "var(--paper-2)" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ height: 12, background: "var(--paper-2)", borderRadius: 4, width: "30%" }} />
+                <div style={{ height: 10, background: "var(--paper-2)", borderRadius: 4 }} />
+                <div style={{ height: 10, background: "var(--paper-2)", borderRadius: 4, width: "60%" }} />
               </div>
             </div>
           ))}
         </div>
       ) : currentImages.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-500">
+        <div className="card" style={{ padding: 48, textAlign: "center" }}>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
             {tab === "pending" && "No pending submissions. All caught up!"}
             {tab === "approved" && "No approved global images yet."}
             {tab === "rejected" && "No rejected submissions."}
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {currentImages.map((image) => {
-            const theme = themeColors[image.theme] || { bg: "bg-gray-100", text: "text-gray-700", label: image.theme };
-
+            const theme = themeColors[image.theme];
             return (
-              <div
-                key={image.id}
-                className="bg-white rounded-xl border border-gray-200 p-4"
-              >
-                <div className="flex gap-4">
-                  {/* Image */}
+              <div key={image.id} className="card" style={{ padding: 18 }}>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={image.url}
                     alt={image.culturalContext}
-                    className="w-36 h-28 rounded-lg object-cover bg-gray-100 shrink-0"
+                    style={{
+                      width: 148,
+                      height: 112,
+                      borderRadius: 12,
+                      objectFit: "cover",
+                      background: "var(--paper-2)",
+                      border: "1px solid var(--line)",
+                      flexShrink: 0,
+                    }}
                   />
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${theme.bg} ${theme.text}`}>
-                        {theme.label}
-                      </span>
+                  <div style={{ flex: 1, minWidth: 240 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        marginBottom: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {theme && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "2px 9px",
+                            borderRadius: 999,
+                            background: theme.soft,
+                            color: theme.accent,
+                            border: `1px solid ${theme.accent}20`,
+                            fontSize: 11.5,
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span
+                            style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent }}
+                          />
+                          {theme.label}
+                        </span>
+                      )}
                       {image.creator && (
-                        <span className="text-xs text-gray-400">
+                        <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>
                           by {image.creator.name} ({image.creator.email})
                         </span>
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-700 line-clamp-2 mb-1">
+                    <p
+                      style={{
+                        fontSize: 13.5,
+                        color: "var(--ink-2)",
+                        margin: "0 0 6px",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
                       {image.culturalContext}
                     </p>
 
-                    <p className="text-xs text-gray-400 mb-2">
-                      {image.talkingPoints.length} talking points · Submitted {new Date(image.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    <p className="mono" style={{ fontSize: 11, color: "var(--ink-4)", margin: 0 }}>
+                      {image.talkingPoints.length} talking points ·{" "}
+                      {new Date(image.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
                     </p>
 
-                    {/* AI Analysis expandable */}
                     {image.aiAnalysis && (
                       <button
-                        onClick={() => setExpandedAnalysis(expandedAnalysis === image.id ? null : image.id)}
-                        className="text-xs text-indigo-600 hover:text-indigo-500 font-medium"
+                        onClick={() =>
+                          setExpandedAnalysis(expandedAnalysis === image.id ? null : image.id)
+                        }
+                        style={{
+                          marginTop: 10,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: "var(--accent)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
                       >
-                        {expandedAnalysis === image.id ? "Hide AI Analysis" : "View AI Analysis"}
+                        {expandedAnalysis === image.id ? "Hide AI analysis" : "View AI analysis"}
                       </button>
                     )}
 
-                    {/* Rejection reason (for rejected tab) */}
                     {image.approvalStatus === "REJECTED" && image.rejectionReason && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg">
-                        <p className="text-xs text-red-600">
-                          <span className="font-medium">Reason:</span> {image.rejectionReason}
+                      <div
+                        style={{
+                          marginTop: 10,
+                          padding: 10,
+                          background: "var(--rose-soft)",
+                          border: "1px solid oklch(0.82 0.09 25)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <p style={{ fontSize: 12, color: "oklch(0.42 0.14 25)", margin: 0 }}>
+                          <strong>Reason:</strong> {image.rejectionReason}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="shrink-0 flex flex-col gap-2">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
                     {tab === "pending" && (
                       <>
                         <button
                           onClick={() => handleApprove(image.id)}
                           disabled={acting === image.id}
-                          className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          className="btn-primary"
+                          style={{
+                            background: "oklch(0.5 0.14 155)",
+                            borderColor: "oklch(0.5 0.14 155)",
+                            padding: "7px 14px",
+                            fontSize: 13,
+                          }}
                         >
-                          {acting === image.id ? "..." : "Approve"}
+                          {acting === image.id ? "…" : "Approve"}
                         </button>
                         <button
                           onClick={() => setRejectingId(image.id)}
                           disabled={acting === image.id}
-                          className="px-3 py-1.5 bg-white text-red-600 text-xs font-medium rounded-lg border border-red-200 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          className="btn-ghost"
+                          style={{
+                            color: "oklch(0.5 0.16 25)",
+                            borderColor: "oklch(0.82 0.09 25)",
+                            padding: "6px 14px",
+                            fontSize: 13,
+                          }}
                         >
                           Reject
                         </button>
@@ -271,7 +368,15 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleDelete(image.id)}
                         disabled={acting === image.id}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-600 transition-colors disabled:opacity-50"
+                        style={{
+                          padding: "6px 14px",
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: "var(--ink-3)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
                       >
                         Remove
                       </button>
@@ -279,40 +384,62 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Expanded AI Analysis */}
                 {expandedAnalysis === image.id && image.aiAnalysis && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-600">
-                    <pre className="whitespace-pre-wrap text-xs bg-gray-50 p-3 rounded-lg overflow-auto max-h-48">
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line-2)" }}>
+                    <pre
+                      className="mono"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        fontSize: 11,
+                        background: "var(--paper-2)",
+                        border: "1px solid var(--line)",
+                        padding: 12,
+                        borderRadius: 8,
+                        maxHeight: 200,
+                        overflow: "auto",
+                        margin: 0,
+                        color: "var(--ink-2)",
+                      }}
+                    >
                       {JSON.stringify(image.aiAnalysis, null, 2)}
                     </pre>
                   </div>
                 )}
 
-                {/* Reject form */}
                 {rejectingId === image.id && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Rejection Reason (required)
-                    </label>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line-2)" }}>
+                    <label className="label">Rejection reason (required)</label>
                     <textarea
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                       rows={2}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 resize-none"
-                      placeholder="Explain why this image is being rejected..."
+                      placeholder="Explain why this image is being rejected…"
                       autoFocus
+                      className="input"
+                      style={{ resize: "none" }}
                     />
-                    <div className="flex gap-2 mt-2">
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                       <button
                         onClick={() => handleReject(image.id)}
                         disabled={!rejectReason.trim() || acting === image.id}
-                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        className="btn-primary"
+                        style={{
+                          background: "oklch(0.5 0.17 25)",
+                          borderColor: "oklch(0.5 0.17 25)",
+                          padding: "7px 14px",
+                          fontSize: 13,
+                          opacity: !rejectReason.trim() || acting === image.id ? 0.5 : 1,
+                        }}
                       >
-                        Confirm Rejection
+                        Confirm rejection
                       </button>
                       <button
-                        onClick={() => { setRejectingId(null); setRejectReason(""); }}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectReason("");
+                        }}
+                        className="btn-ghost"
+                        style={{ padding: "6px 14px", fontSize: 13 }}
                       >
                         Cancel
                       </button>

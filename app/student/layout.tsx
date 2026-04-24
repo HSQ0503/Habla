@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navItems = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+};
+
+const navItems: NavItem[] = [
   {
     label: "Dashboard",
     href: "/student/dashboard",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
       </svg>
     ),
@@ -20,7 +25,7 @@ const navItems = [
     label: "Practice",
     href: "/student/practice",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
       </svg>
     ),
@@ -29,7 +34,7 @@ const navItems = [
     label: "History",
     href: "/student/history",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
       </svg>
     ),
@@ -38,12 +43,32 @@ const navItems = [
     label: "Progress",
     href: "/student/progress",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
       </svg>
     ),
   },
 ];
+
+function HablaLogo() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <svg width={26} height={26} viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--ink)" />
+        <path
+          d="M10 20 L10 12 M10 16 L18 16 M18 20 L18 12"
+          stroke="var(--paper)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+        <circle cx="22.5" cy="11" r="2" fill="var(--accent)" />
+      </svg>
+      <span className="display" style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.03em" }}>
+        Habla
+      </span>
+    </div>
+  );
+}
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const { data: session, update: updateSession } = useSession();
@@ -84,121 +109,164 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     setJoining(false);
   }
 
-  // Hide sidebar shell during active practice sessions
   const inSession = /^\/student\/practice\/[^/]+$/.test(pathname);
   if (inSession) {
     return <>{children}</>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="flex items-center h-16 px-6 border-b border-gray-200">
-          <Link href="/student/dashboard">
-            <Image src="/logo.png" alt="Habla" width={100} height={32} priority />
-          </Link>
-        </div>
-
-        <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Join class prompt if no class */}
-        {session?.user && !session.user.classId && (
-          <div className="mx-4 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-xs font-medium text-amber-800 mb-1">No class joined</p>
-            <p className="text-xs text-amber-600 mb-2">
-              Ask your teacher for a class code to join.
-            </p>
-            <button
-              onClick={() => setJoinModalOpen(true)}
-              className="w-full px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
-            >
-              Join Class
-            </button>
-          </div>
+    <div className="habla-ui">
+      <div className="app-shell">
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "oklch(0 0 0 / 0.25)",
+              zIndex: 35,
+            }}
+          />
         )}
-      </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          </button>
+        <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+          <Link href="/student/dashboard" style={{ padding: "4px 6px 14px" }}>
+            <HablaLogo />
+          </Link>
 
-          <div className="lg:hidden" />
+          <nav style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+            {navItems.map((item) => {
+              const active = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`sidebar-link ${active ? "active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
-          <div className="flex items-center gap-4 ml-auto">
-            <span className="text-sm text-gray-600">
-              {session?.user?.name}
-            </span>
-            <button
-              onClick={() => signOut({ callbackUrl: "/auth/login" })}
-              className="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors"
+          {session?.user && !session.user.classId && (
+            <div
+              className="card-soft"
+              style={{
+                marginTop: "auto",
+                padding: 14,
+                background: "var(--gold-soft)",
+                border: "1px solid oklch(0.82 0.09 65)",
+              }}
             >
-              Sign out
-            </button>
-          </div>
-        </header>
+              <div className="eyebrow" style={{ fontSize: 10, color: "oklch(0.42 0.13 65)", marginBottom: 4 }}>
+                No class joined
+              </div>
+              <p style={{ fontSize: 12, color: "var(--ink-2)", margin: "0 0 10px", lineHeight: 1.4 }}>
+                Ask your teacher for a class code.
+              </p>
+              <button
+                onClick={() => setJoinModalOpen(true)}
+                className="btn-primary"
+                style={{ width: "100%", justifyContent: "center", padding: "7px 10px", fontSize: 13 }}
+              >
+                Join Class
+              </button>
+            </div>
+          )}
+        </aside>
 
-        <main className="p-6">{children}</main>
+        <div className="app-main">
+          <header className="page-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 40px" }}>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+              style={{
+                display: "none",
+                padding: 8,
+                borderRadius: 8,
+                background: "transparent",
+                border: "1px solid var(--line)",
+                color: "var(--ink-2)",
+              }}
+              className="mobile-menu-btn"
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
+                <path strokeLinecap="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginLeft: "auto" }}>
+              <span style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                {session?.user?.name}
+              </span>
+              <button
+                onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--ink-2)",
+                  background: "none",
+                  border: "none",
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <main className="page-body">{children}</main>
+        </div>
       </div>
 
-      {/* Join Class Modal */}
       {joinModalOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/40 z-[60]"
             onClick={() => {
               setJoinModalOpen(false);
               setJoinCode("");
               setJoinError("");
               setJoinSuccess("");
             }}
+            style={{ position: "fixed", inset: 0, background: "oklch(0 0 0 / 0.4)", zIndex: 60 }}
           />
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm shadow-lg">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">Join a Class</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Enter the 6-character code your teacher gave you.
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 70,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <div className="card" style={{ padding: 28, width: "100%", maxWidth: 400, background: "var(--card)" }}>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>Join a class</div>
+              <h2 className="display" style={{ fontSize: 24, margin: "0 0 8px" }}>
+                Enter your code.
+              </h2>
+              <p style={{ fontSize: 14, color: "var(--ink-3)", margin: "0 0 20px" }}>
+                The 6-character code your teacher gave you.
               </p>
 
               {joinSuccess ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                  <p className="text-sm font-medium text-green-700">{joinSuccess}</p>
+                <div
+                  style={{
+                    background: "var(--sage-soft)",
+                    border: "1px solid oklch(0.82 0.07 155)",
+                    borderRadius: 10,
+                    padding: 14,
+                    textAlign: "center",
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "oklch(0.4 0.1 155)" }}>
+                    {joinSuccess}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -210,31 +278,42 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                       setJoinError("");
                     }}
                     onKeyDown={(e) => e.key === "Enter" && handleJoinClass()}
-                    placeholder="e.g. ABC234"
+                    placeholder="ABC234"
                     maxLength={6}
-                    className="w-full px-3 py-2 text-center font-mono text-xl tracking-widest border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
                     autoFocus
+                    className="input mono"
+                    style={{
+                      textAlign: "center",
+                      fontSize: 22,
+                      letterSpacing: "0.3em",
+                      marginBottom: 12,
+                      fontWeight: 600,
+                    }}
                   />
-
                   {joinError && (
-                    <p className="text-xs text-red-600 mb-3">{joinError}</p>
+                    <p style={{ fontSize: 12, color: "oklch(0.5 0.16 25)", margin: "0 0 12px" }}>{joinError}</p>
                   )}
-
-                  <div className="flex gap-2">
+                  <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => {
                         setJoinModalOpen(false);
                         setJoinCode("");
                         setJoinError("");
                       }}
-                      className="flex-1 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="btn-ghost"
+                      style={{ flex: 1, justifyContent: "center" }}
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleJoinClass}
                       disabled={joinCode.length !== 6 || joining}
-                      className="flex-1 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      className="btn-primary"
+                      style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        opacity: joinCode.length !== 6 || joining ? 0.5 : 1,
+                      }}
                     >
                       {joining ? "Joining..." : "Join"}
                     </button>
@@ -245,6 +324,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </>
       )}
+
+      <style jsx>{`
+        @media (max-width: 900px) {
+          .mobile-menu-btn { display: inline-flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

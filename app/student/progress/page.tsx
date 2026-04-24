@@ -34,9 +34,7 @@ export default function ProgressPage() {
   useEffect(() => {
     async function load() {
       const res = await fetch("/api/students/stats");
-      if (res.ok) {
-        setStats(await res.json());
-      }
+      if (res.ok) setStats(await res.json());
       setLoading(false);
     }
     load();
@@ -44,59 +42,87 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading...
-        </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          color: "var(--ink-3)",
+          fontSize: 14,
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="text-center py-16">
-        <p className="text-sm text-gray-500">Failed to load progress data.</p>
+      <div className="card" style={{ padding: 40, textAlign: "center" }}>
+        <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+          Failed to load progress data.
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Progress</h1>
-        <p className="mt-1 text-sm text-gray-500">
+      <div style={{ marginBottom: 28 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Your improvement</div>
+        <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 38px)", margin: 0 }}>
+          Progress.
+        </h1>
+        <p style={{ color: "var(--ink-3)", marginTop: 8, fontSize: 15 }}>
           Track your improvement over time across all IB IO criteria.
         </p>
       </div>
 
-      {/* Summary stats row */}
       {stats.totalSessions > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-semibold text-gray-900">{stats.totalSessions}</p>
-            <p className="text-xs text-gray-500">Sessions</p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: 14,
+            marginBottom: 20,
+          }}
+        >
+          <div className="stat" style={{ textAlign: "center" }}>
+            <div className="stat-value">{stats.totalSessions}</div>
+            <div className="stat-label">Sessions</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-semibold text-gray-900">
-              {stats.averageScore !== null ? stats.averageScore : "—"}
-              {stats.averageScore !== null && <span className="text-sm text-gray-400">/30</span>}
-            </p>
-            <p className="text-xs text-gray-500">Average</p>
+          <div className="stat" style={{ textAlign: "center" }}>
+            <div className="stat-value">
+              {stats.averageScore !== null ? (
+                <>
+                  {stats.averageScore}
+                  <span style={{ fontSize: 16, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+                </>
+              ) : (
+                "—"
+              )}
+            </div>
+            <div className="stat-label">Average</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-semibold text-gray-900">
-              {stats.bestScore !== null ? stats.bestScore : "—"}
-              {stats.bestScore !== null && <span className="text-sm text-gray-400">/30</span>}
-            </p>
-            <p className="text-xs text-gray-500">Best</p>
+          <div className="stat" style={{ textAlign: "center" }}>
+            <div className="stat-value">
+              {stats.bestScore !== null ? (
+                <>
+                  {stats.bestScore}
+                  <span style={{ fontSize: 16, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+                </>
+              ) : (
+                "—"
+              )}
+            </div>
+            <div className="stat-label">Best</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-2xl font-semibold text-indigo-600">{stats.currentStreak}</p>
-            <p className="text-xs text-gray-500">Day Streak</p>
+          <div className="stat" style={{ textAlign: "center" }}>
+            <div className="stat-value" style={{ color: "var(--accent)" }}>
+              {stats.currentStreak}
+            </div>
+            <div className="stat-label">Day streak</div>
           </div>
         </div>
       )}

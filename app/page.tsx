@@ -2584,7 +2584,7 @@ function LandingFooter() {
 
 export default function LandingPage() {
   return (
-    <div className="habla-landing">
+    <div className="habla-ui">
       <Nav />
       <main>
         <Hero />

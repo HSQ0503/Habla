@@ -41,9 +41,7 @@ export default function ClassPage() {
     const res = await fetch("/api/teacher/class");
     const data = await res.json();
     setClassInfo(data.class);
-    if (data.class) {
-      setEditName(data.class.name);
-    }
+    if (data.class) setEditName(data.class.name);
     setLoading(false);
   }, []);
 
@@ -67,9 +65,7 @@ export default function ClassPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: className.trim() }),
     });
-    if (res.ok) {
-      await fetchClass();
-    }
+    if (res.ok) await fetchClass();
     setCreating(false);
   }
 
@@ -112,9 +108,8 @@ export default function ClassPage() {
   }
 
   function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
-    } else {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else {
       setSortKey(key);
       setSortAsc(true);
     }
@@ -133,39 +128,64 @@ export default function ClassPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "40vh",
+          color: "var(--ink-3)",
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
-  // No class yet — show create form
   if (!classInfo) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
-          </svg>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Create Your Class</h1>
-          <p className="text-sm text-gray-500 mb-6">
+      <div style={{ maxWidth: 460, margin: "48px auto 0" }}>
+        <div className="card" style={{ padding: 32, textAlign: "center" }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: "var(--sage-soft)",
+              border: "1px solid oklch(0.82 0.07 155)",
+              margin: "0 auto 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="oklch(0.4 0.1 155)">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </div>
+          <h1 className="display" style={{ fontSize: 24, margin: "0 0 8px" }}>
+            Create your class
+          </h1>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", marginBottom: 20 }}>
             Create a class to start managing students and tracking their progress.
           </p>
-          <div className="flex gap-2">
+          <div style={{ display: "flex", gap: 8 }}>
             <input
               type="text"
               value={className}
               onChange={(e) => setClassName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createClass()}
               placeholder="Class name (e.g. Spanish B SL)"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="input"
+              style={{ flex: 1 }}
             />
             <button
               onClick={createClass}
               disabled={!className.trim() || creating}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="btn-primary"
+              style={{ opacity: !className.trim() || creating ? 0.5 : 1 }}
             >
-              {creating ? "Creating..." : "Create"}
+              {creating ? "Creating…" : "Create"}
             </button>
           </div>
         </div>
@@ -174,19 +194,40 @@ export default function ClassPage() {
   }
 
   const SortIcon = ({ active, asc }: { active: boolean; asc: boolean }) => (
-    <svg className={`w-3 h-3 ml-1 inline ${active ? "text-indigo-600" : "text-gray-300"}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+    <svg
+      width={10}
+      height={10}
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth={2.5}
+      stroke={active ? "var(--ink)" : "var(--ink-4)"}
+      style={{ marginLeft: 4, display: "inline" }}
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d={active && !asc ? "M19.5 8.25l-7.5 7.5-7.5-7.5" : "M4.5 15.75l7.5-7.5 7.5 7.5"} />
     </svg>
   );
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Class Management</h1>
+      <div style={{ marginBottom: 24 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Classroom</div>
+        <h1 className="display" style={{ fontSize: "clamp(28px, 3vw, 38px)", margin: 0 }}>
+          Class management.
+        </h1>
+      </div>
 
-      {/* Class Info Card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
+      <div className="card" style={{ padding: 26, marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 18,
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {editingName ? (
               <input
                 autoFocus
@@ -194,13 +235,29 @@ export default function ClassPage() {
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={updateName}
                 onKeyDown={(e) => e.key === "Enter" && updateName()}
-                className="text-lg font-semibold text-gray-900 border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="input"
+                style={{ fontSize: 18, fontWeight: 600, width: "auto" }}
               />
             ) : (
               <>
-                <h2 className="text-lg font-semibold text-gray-900">{classInfo.name}</h2>
-                <button onClick={() => setEditingName(true)} className="text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <h2
+                  className="display"
+                  style={{ fontSize: 22, margin: 0, fontWeight: 600 }}
+                >
+                  {classInfo.name}
+                </h2>
+                <button
+                  onClick={() => setEditingName(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--ink-4)",
+                    cursor: "pointer",
+                    padding: 4,
+                  }}
+                  aria-label="Edit name"
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
                   </svg>
                 </button>
@@ -209,21 +266,37 @@ export default function ClassPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 uppercase tracking-wider">Join Code</span>
-            <span className="font-mono text-2xl font-bold text-indigo-600 tracking-widest">{classInfo.code}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="eyebrow" style={{ fontSize: 10 }}>Join code</span>
+            <span
+              className="mono"
+              style={{
+                fontSize: 28,
+                fontWeight: 600,
+                color: "var(--accent)",
+                letterSpacing: "0.2em",
+              }}
+            >
+              {classInfo.code}
+            </span>
             <button
               onClick={copyCode}
-              className="text-gray-400 hover:text-indigo-600 transition-colors"
               title="Copy code"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: copied ? "oklch(0.55 0.14 155)" : "var(--ink-4)",
+                padding: 4,
+              }}
             >
               {copied ? (
-                <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
                 </svg>
               )}
@@ -231,30 +304,47 @@ export default function ClassPage() {
           </div>
           <button
             onClick={() => setConfirmRegenerate(true)}
-            className="text-xs text-gray-500 hover:text-red-600 underline transition-colors"
+            style={{
+              fontSize: 12,
+              color: "var(--ink-3)",
+              textDecoration: "underline",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             Regenerate code
           </button>
         </div>
-        <p className="text-xs text-gray-400">Share this code with students so they can join your class.</p>
+        <p style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 12, marginBottom: 0 }}>
+          Share this code with students so they can join your class.
+        </p>
       </div>
 
-      {/* Regenerate confirmation */}
       {confirmRegenerate && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <p className="text-sm text-red-700 mb-3">
+        <div
+          className="card"
+          style={{
+            padding: 18,
+            marginBottom: 20,
+            background: "var(--rose-soft)",
+            borderColor: "oklch(0.82 0.09 25)",
+          }}
+        >
+          <p style={{ fontSize: 14, color: "oklch(0.42 0.14 25)", margin: "0 0 12px" }}>
             Are you sure? The old code will stop working immediately.
           </p>
-          <div className="flex gap-2">
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={regenerateCode}
-              className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+              className="btn-primary"
+              style={{ background: "oklch(0.5 0.17 25)", borderColor: "oklch(0.5 0.17 25)" }}
             >
               Yes, regenerate
             </button>
             <button
               onClick={() => setConfirmRegenerate(false)}
-              className="px-3 py-1.5 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="btn-ghost"
             >
               Cancel
             </button>
@@ -262,95 +352,112 @@ export default function ClassPage() {
         </div>
       )}
 
-      {/* Remove confirmation */}
       {removeId && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <p className="text-sm text-red-700 mb-3">
+        <div
+          className="card"
+          style={{
+            padding: 18,
+            marginBottom: 20,
+            background: "var(--rose-soft)",
+            borderColor: "oklch(0.82 0.09 25)",
+          }}
+        >
+          <p style={{ fontSize: 14, color: "oklch(0.42 0.14 25)", margin: "0 0 12px" }}>
             Remove {students.find((s) => s.id === removeId)?.name} from your class?
           </p>
-          <div className="flex gap-2">
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={() => removeStudent(removeId)}
-              className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+              className="btn-primary"
+              style={{ background: "oklch(0.5 0.17 25)", borderColor: "oklch(0.5 0.17 25)" }}
             >
               Remove
             </button>
-            <button
-              onClick={() => setRemoveId(null)}
-              className="px-3 py-1.5 bg-white text-gray-600 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={() => setRemoveId(null)} className="btn-ghost">
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Student Roster */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">
-            Students ({students.length})
-          </h2>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <div
+          style={{
+            padding: "18px 20px",
+            borderBottom: "1px solid var(--line)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div className="eyebrow">Students</div>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+            {students.length} total
+          </span>
         </div>
 
         {students.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500">No students have joined yet. Share your class code to get started.</p>
+          <div style={{ padding: 48, textAlign: "center" }}>
+            <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+              No students have joined yet. Share your class code to get started.
+            </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div style={{ overflowX: "auto" }}>
+            <table className="data-table">
               <thead>
-                <tr className="border-b border-gray-100">
-                  {([
-                    ["name", "Name"],
-                    ["email", "Email"],
-                    ["joinedAt", "Joined"],
-                    ["sessionCount", "Sessions"],
-                    ["avgScore", "Avg Score"],
-                    ["lastActive", "Last Active"],
-                  ] as [SortKey, string][]).map(([key, label]) => (
+                <tr>
+                  {(
+                    [
+                      ["name", "Name"],
+                      ["email", "Email"],
+                      ["joinedAt", "Joined"],
+                      ["sessionCount", "Sessions"],
+                      ["avgScore", "Avg score"],
+                      ["lastActive", "Last active"],
+                    ] as [SortKey, string][]
+                  ).map(([key, label]) => (
                     <th
                       key={key}
                       onClick={() => handleSort(key)}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 select-none"
+                      style={{ cursor: "pointer", userSelect: "none" }}
                     >
                       {label}
                       <SortIcon active={sortKey === key} asc={sortAsc} />
                     </th>
                   ))}
-                  <th className="px-6 py-3 w-10" />
+                  <th style={{ width: 40 }} />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {sorted.map((s) => (
                   <tr
                     key={s.id}
                     onClick={() => router.push(`/teacher/students/${s.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    style={{ cursor: "pointer" }}
                   >
-                    <td className="px-6 py-3 font-medium text-gray-900">{s.name}</td>
-                    <td className="px-6 py-3 text-gray-500">{s.email}</td>
-                    <td className="px-6 py-3 text-gray-500">
-                      {new Date(s.joinedAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-3 text-gray-500">{s.sessionCount}</td>
-                    <td className="px-6 py-3 text-gray-500">
-                      {s.avgScore !== null ? `${s.avgScore}/30` : "—"}
-                    </td>
-                    <td className="px-6 py-3 text-gray-500">
-                      {s.lastActive ? new Date(s.lastActive).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-6 py-3">
+                    <td style={{ color: "var(--ink)", fontWeight: 500 }}>{s.name}</td>
+                    <td>{s.email}</td>
+                    <td>{new Date(s.joinedAt).toLocaleDateString()}</td>
+                    <td>{s.sessionCount}</td>
+                    <td>{s.avgScore !== null ? `${s.avgScore}/30` : "—"}</td>
+                    <td>{s.lastActive ? new Date(s.lastActive).toLocaleDateString() : "—"}</td>
+                    <td>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setRemoveId(s.id);
                         }}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--ink-4)",
+                          padding: 4,
+                        }}
                         title="Remove student"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={1.6} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
                       </button>

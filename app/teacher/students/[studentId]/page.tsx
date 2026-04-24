@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { themeColors } from "@/lib/theme-colors";
 import { CriterionBars, ScoreTrend } from "@/components/dashboard/DashboardCharts";
 
 type StudentData = {
@@ -34,22 +35,10 @@ type StudentData = {
   }[];
 };
 
-function themeLabel(theme: string) {
-  return theme
-    .split("_")
-    .map((w) => w[0] + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function themeBadgeColor(theme: string) {
-  const colors: Record<string, string> = {
-    IDENTITIES: "bg-blue-50 text-blue-700",
-    EXPERIENCES: "bg-purple-50 text-purple-700",
-    HUMAN_INGENUITY: "bg-amber-50 text-amber-700",
-    SOCIAL_ORGANIZATION: "bg-green-50 text-green-700",
-    SHARING_THE_PLANET: "bg-teal-50 text-teal-700",
-  };
-  return colors[theme] || "bg-gray-50 text-gray-700";
+function scoreHue(total: number) {
+  if (total >= 20) return { color: "oklch(0.4 0.1 155)", bg: "var(--sage-soft)", border: "oklch(0.82 0.07 155)" };
+  if (total >= 12) return { color: "oklch(0.42 0.13 65)", bg: "var(--gold-soft)", border: "oklch(0.82 0.09 65)" };
+  return { color: "oklch(0.42 0.14 25)", bg: "var(--rose-soft)", border: "oklch(0.82 0.09 25)" };
 }
 
 export default function StudentDetailPage() {
@@ -71,7 +60,9 @@ export default function StudentDetailPage() {
   }, [studentId]);
 
   useEffect(() => {
-    void (async () => { await fetchData(); })();
+    void (async () => {
+      await fetchData();
+    })();
   }, [fetchData]);
 
   function handleNotesChange(value: string) {
@@ -90,23 +81,32 @@ export default function StudentDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "40vh",
+          color: "var(--ink-3)",
+        }}
+      >
+        Loading…
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="text-center py-20">
-        <p className="text-sm text-gray-500">Student not found or not in your class.</p>
+      <div className="card" style={{ padding: 40, textAlign: "center" }}>
+        <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+          Student not found or not in your class.
+        </p>
       </div>
     );
   }
 
   const { student, stats, criterionAvgs, scores, sessions } = data;
 
-  // Strengths & weaknesses from criterion avgs
   const criteriaList = [
     { key: "A", label: "Language", max: 12, avg: criterionAvgs.A },
     { key: "B1", label: "Visual Stimulus", max: 6, avg: criterionAvgs.B1 },
@@ -119,149 +119,281 @@ export default function StudentDetailPage() {
   const strongest = withPct.length > 0 ? withPct.reduce((a, b) => (a.pct > b.pct ? a : b)) : null;
   const weakest = withPct.length > 0 ? withPct.reduce((a, b) => (a.pct < b.pct ? a : b)) : null;
 
-  const statCards = [
-    { label: "Total Sessions", value: stats.totalSessions },
-    { label: "Average Score", value: stats.avgScore !== null ? `${stats.avgScore}/30` : "—" },
-    { label: "Best Score", value: stats.bestScore !== null ? `${stats.bestScore}/30` : "—" },
-    {
-      label: "Last Active",
-      value: stats.lastActive ? new Date(stats.lastActive).toLocaleDateString() : "—",
-    },
-  ];
-
   return (
     <div>
-      {/* Back link */}
       <Link
         href="/teacher/class"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          color: "var(--ink-3)",
+          marginBottom: 20,
+        }}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
-        Back to Class
+        Back to class
       </Link>
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">{student.name}</h1>
-        <p className="text-sm text-gray-500">{student.email}</p>
-        <p className="text-xs text-gray-400 mt-1">
+      <div style={{ marginBottom: 28 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Student</div>
+        <h1 className="display" style={{ fontSize: "clamp(30px, 3vw, 40px)", margin: 0 }}>
+          {student.name}
+        </h1>
+        <p style={{ fontSize: 14, color: "var(--ink-3)", margin: "6px 0 0" }}>{student.email}</p>
+        <p className="mono" style={{ fontSize: 11, color: "var(--ink-4)", margin: "4px 0 0" }}>
           Member since {new Date(student.memberSince).toLocaleDateString()}
         </p>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {statCards.map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-            <p className="text-2xl font-semibold text-gray-900">{s.value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{s.label}</p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 14,
+          marginBottom: 20,
+        }}
+      >
+        <div className="stat">
+          <div className="stat-label">Total sessions</div>
+          <div className="stat-value">{stats.totalSessions}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Average</div>
+          <div className="stat-value">
+            {stats.avgScore !== null ? (
+              <>
+                {stats.avgScore}
+                <span style={{ fontSize: 16, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+              </>
+            ) : (
+              "—"
+            )}
           </div>
-        ))}
+        </div>
+        <div className="stat">
+          <div className="stat-label">Best</div>
+          <div className="stat-value">
+            {stats.bestScore !== null ? (
+              <>
+                {stats.bestScore}
+                <span style={{ fontSize: 16, color: "var(--ink-4)", fontWeight: 500 }}>/30</span>
+              </>
+            ) : (
+              "—"
+            )}
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Last active</div>
+          <div className="stat-value" style={{ fontSize: 22 }}>
+            {stats.lastActive ? new Date(stats.lastActive).toLocaleDateString() : "—"}
+          </div>
+        </div>
       </div>
 
-      {/* Score Trend */}
       <ScoreTrend scores={scores.map((s) => ({ date: s.date, total: s.total })).reverse()} />
-
-      {/* Criterion Averages */}
       {criterionAvgs.A !== null && <CriterionBars avgs={criterionAvgs} />}
 
-      {/* Strengths & Weaknesses */}
       {strongest && weakest && strongest.key !== weakest.key && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <h3 className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">
-              Strongest Area
-            </h3>
-            <p className="text-sm font-medium text-green-800">{strongest.label}</p>
-            <p className="text-xs text-green-600 mt-0.5">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 14,
+            marginBottom: 20,
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              padding: 18,
+              background: "var(--sage-soft)",
+              borderColor: "oklch(0.82 0.07 155)",
+            }}
+          >
+            <div className="eyebrow" style={{ color: "oklch(0.4 0.1 155)", marginBottom: 4 }}>
+              Strongest area
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: "oklch(0.35 0.1 155)", margin: 0 }}>
+              {strongest.label}
+            </p>
+            <p className="mono" style={{ fontSize: 12, color: "oklch(0.4 0.1 155)", margin: "4px 0 0" }}>
               {strongest.avg?.toFixed(1)}/{strongest.max} ({Math.round(strongest.pct)}%)
             </p>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h3 className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1">
-              Needs Improvement
-            </h3>
-            <p className="text-sm font-medium text-amber-800">{weakest.label}</p>
-            <p className="text-xs text-amber-600 mt-0.5">
+          <div
+            className="card"
+            style={{
+              padding: 18,
+              background: "var(--gold-soft)",
+              borderColor: "oklch(0.82 0.09 65)",
+            }}
+          >
+            <div className="eyebrow" style={{ color: "oklch(0.42 0.13 65)", marginBottom: 4 }}>
+              Needs improvement
+            </div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: "oklch(0.38 0.13 65)", margin: 0 }}>
+              {weakest.label}
+            </p>
+            <p className="mono" style={{ fontSize: 12, color: "oklch(0.42 0.13 65)", margin: "4px 0 0" }}>
               {weakest.avg?.toFixed(1)}/{weakest.max} ({Math.round(weakest.pct)}%)
             </p>
           </div>
         </div>
       )}
 
-      {/* Teacher Notes */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Teacher Notes
-          </h3>
+      <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+          }}
+        >
+          <div className="eyebrow">Teacher notes</div>
           {saving && (
-            <span className="text-xs text-gray-400">Saving...</span>
+            <span style={{ fontSize: 11, color: "var(--ink-4)" }}>Saving…</span>
           )}
         </div>
         <textarea
           value={notes}
           onChange={(e) => handleNotesChange(e.target.value)}
-          placeholder="Add private notes about this student..."
+          placeholder="Add private notes about this student…"
           rows={3}
-          className="w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          className="input"
+          style={{ resize: "none" }}
         />
       </div>
 
-      {/* Session History */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">
-            Session History ({sessions.length})
-          </h3>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <div
+          style={{
+            padding: "18px 20px",
+            borderBottom: "1px solid var(--line)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div className="eyebrow">Session history</div>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{sessions.length} total</span>
         </div>
 
         {sessions.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500">No completed sessions yet.</p>
+          <div style={{ padding: 48, textAlign: "center" }}>
+            <p style={{ fontSize: 14, color: "var(--ink-3)", margin: 0 }}>
+              No completed sessions yet.
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
-            {sessions.map((s) => (
-              <Link
-                key={s.id}
-                href={`/teacher/students/${studentId}/sessions/${s.id}`}
-                className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 transition-colors"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={s.image.url}
-                  alt=""
-                  className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${themeBadgeColor(s.image.theme)}`}>
-                      {themeLabel(s.image.theme)}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {s.completedAt ? new Date(s.completedAt).toLocaleDateString() : ""}
-                    </span>
-                    {s.violationCount > 0 && (
-                      <span className="px-1.5 py-0.5 text-xs bg-red-50 text-red-600 rounded-full">
-                        {s.violationCount} violation{s.violationCount !== 1 ? "s" : ""}
+          <div>
+            {sessions.map((s) => {
+              const theme = themeColors[s.image.theme];
+              const hue = scoreHue(s.total);
+              return (
+                <Link
+                  key={s.id}
+                  href={`/teacher/students/${studentId}/sessions/${s.id}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: "14px 20px",
+                    borderBottom: "1px solid var(--line-2)",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={s.image.url}
+                    alt=""
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      objectFit: "cover",
+                      border: "1px solid var(--line)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 4,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {theme && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "2px 9px",
+                            borderRadius: 999,
+                            background: theme.soft,
+                            color: theme.accent,
+                            border: `1px solid ${theme.accent}20`,
+                            fontSize: 11.5,
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span
+                            style={{ width: 5, height: 5, borderRadius: "50%", background: theme.accent }}
+                          />
+                          {theme.label}
+                        </span>
+                      )}
+                      <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                        {s.completedAt ? new Date(s.completedAt).toLocaleDateString() : ""}
                       </span>
-                    )}
+                      {s.violationCount > 0 && (
+                        <span className="badge badge-rose" style={{ fontSize: 10 }}>
+                          {s.violationCount} violation{s.violationCount !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          padding: "3px 9px",
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: hue.bg,
+                          color: hue.color,
+                          border: `1px solid ${hue.border}`,
+                        }}
+                      >
+                        {s.total}/30
+                      </span>
+                      <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                        A:{s.scoreA} B1:{s.scoreB1} B2:{s.scoreB2} C:{s.scoreC}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm font-semibold text-gray-900">{s.total}/30</span>
-                    <span className="text-xs text-gray-400">
-                      A:{s.scoreA} B1:{s.scoreB1} B2:{s.scoreB2} C:{s.scoreC}
-                    </span>
-                  </div>
-                </div>
-                <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
-            ))}
+                  <svg
+                    width={14}
+                    height={14}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    strokeWidth={2}
+                    stroke="var(--ink-4)"
+                    style={{ flexShrink: 0 }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                  </svg>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
