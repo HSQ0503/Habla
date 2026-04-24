@@ -1,0 +1,8 @@
+{
+  "projectId": "prj_e634bddf",
+  "projectName": "Habla",
+  "environments": {
+    "development": ".env"
+  },
+  "ignore": []
+}

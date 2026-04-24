@@ -1,128 +1,365 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useInView } from "@/hooks/useInView";
 
-const NAV_LINKS = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Features", href: "#features" },
-  { label: "For Teachers", href: "#teachers" },
-];
+/* ═══════════════════════════════════════════════════════════
+   Shared primitives
+   ═══════════════════════════════════════════════════════════ */
 
-const THEME_BADGES = [
-  { label: "Identidades", color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
-  { label: "Experiencias", color: "bg-green-100 text-green-700", dot: "bg-green-500" },
-  { label: "Ingenio humano", color: "bg-purple-100 text-purple-700", dot: "bg-purple-500" },
-  { label: "Organización social", color: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
-  { label: "Compartir el planeta", color: "bg-teal-100 text-teal-700", dot: "bg-teal-500" },
-];
+function Reveal({
+  children,
+  className = "",
+  stagger = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  stagger?: boolean;
+}) {
+  const { ref, isVisible } = useInView(0.12);
+  return (
+    <div
+      ref={ref}
+      className={`${stagger ? "stagger" : "in-view"} ${isVisible ? "seen" : ""} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
 
-const EXAM_PHASES = [
-  { name: "Preparation", duration: "15 min", description: "Study the image" },
-  { name: "Presentation", duration: "3–4 min", description: "Present your analysis" },
-  { name: "Follow-up", duration: "4–5 min", description: "Answer questions" },
-  { name: "General Discussion", duration: "5–6 min", description: "Broader conversation" },
-];
+function FloatingMark({
+  glyph = "¿",
+  style = {},
+}: {
+  glyph?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        fontFamily: "var(--habla-display)",
+        fontSize: 120,
+        fontWeight: 500,
+        color: "var(--accent)",
+        opacity: 0.06,
+        userSelect: "none",
+        lineHeight: 1,
+        letterSpacing: "-0.04em",
+        ...style,
+      }}
+    >
+      {glyph}
+    </span>
+  );
+}
 
-// ── Mock UI Components ──
+function Sparkline({
+  points,
+  stroke = "var(--indigo)",
+  fill = true,
+  height = 40,
+  width = 160,
+}: {
+  points: number[];
+  stroke?: string;
+  fill?: boolean;
+  height?: number;
+  width?: number;
+}) {
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const dx = width / (points.length - 1);
+  const scale = (v: number) =>
+    height - ((v - min) / Math.max(1, max - min)) * (height - 6) - 3;
+  const d = points.map((p, i) => `${i === 0 ? "M" : "L"}${i * dx},${scale(p)}`).join(" ");
+  const area = `${d} L${width},${height} L0,${height} Z`;
+  return (
+    <svg width={width} height={height} style={{ display: "block" }}>
+      {fill && <path d={area} fill={stroke} opacity="0.08" />}
+      <path d={d} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle
+        cx={(points.length - 1) * dx}
+        cy={scale(points[points.length - 1])}
+        r="3.5"
+        fill={stroke}
+      />
+    </svg>
+  );
+}
 
-function MockSessionUI() {
-  const barPeaks = [16, 28, 22, 36, 18, 40, 24, 34, 20, 38, 14, 26];
+function HablaLogo({ size = 26 }: { size?: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--ink)" />
+        <path
+          d="M10 20 L10 12 M10 16 L18 16 M18 20 L18 12"
+          stroke="var(--paper)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+        <circle cx="22.5" cy="11" r="2" fill="var(--accent)" />
+      </svg>
+      <span
+        className="display"
+        style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.03em" }}
+      >
+        Habla
+      </span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Mock UI components
+   ═══════════════════════════════════════════════════════════ */
+
+function Bubble({ role, text, visible }: { role: "examiner" | "you"; text: string; visible: boolean }) {
+  const isYou = role === "you";
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: isYou ? "flex-end" : "flex-start",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(8px)",
+        transition: "opacity 0.4s ease, transform 0.4s ease",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "84%",
+          background: isYou ? "var(--ink)" : "var(--indigo-softer)",
+          color: isYou ? "var(--paper)" : "var(--ink)",
+          padding: "9px 14px 10px",
+          borderRadius: 16,
+          borderTopLeftRadius: !isYou ? 6 : 16,
+          borderTopRightRadius: isYou ? 6 : 16,
+          fontSize: 13.5,
+          lineHeight: 1.45,
+          border: isYou ? "1px solid var(--ink)" : "1px solid oklch(0.88 0.04 280)",
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function TypingBubble() {
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+      <div
+        style={{
+          background: "var(--indigo-softer)",
+          padding: "10px 14px",
+          borderRadius: 16,
+          borderTopLeftRadius: 6,
+          border: "1px solid oklch(0.88 0.04 280)",
+          display: "flex",
+          gap: 4,
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: "var(--indigo)",
+              animation: "habla-type-dot 1.2s ease-in-out infinite",
+              animationDelay: `${i * 0.15}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConversationMock() {
+  const barPeaks = [18, 32, 22, 40, 16, 42, 26, 36, 20, 38, 14, 28, 22, 34, 18];
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setStep((s) => (s + 1) % 5), 2600);
+    return () => clearTimeout(t);
+  }, [step]);
 
   return (
-    <div className="relative">
-      <div className="animate-float rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-indigo-100/50 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+    <div style={{ position: "relative" }}>
+      <FloatingMark glyph="¿" style={{ top: -60, left: -50, fontSize: 140, transform: "rotate(-10deg)" }} />
+      <FloatingMark glyph="¡" style={{ bottom: -40, right: -20, fontSize: 100, transform: "rotate(12deg)", opacity: 0.1 }} />
+
+      <div className="card" style={{ overflow: "hidden", position: "relative", background: "var(--card)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 20px",
+            borderBottom: "1px solid var(--line)",
+            background: "var(--paper-2)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--rose)" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--gold-2)" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--sage)" }} />
             </div>
-            <span className="text-xs font-medium text-gray-500">Practice Session</span>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+              session.habla / live
+            </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span
-              className="w-1.5 h-1.5 rounded-full bg-green-500"
-              style={{ animation: "pulse-dot 2s ease-in-out infinite" }}
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "oklch(0.62 0.18 140)",
+                animation: "habla-pulse-dot 1.6s ease-in-out infinite",
+              }}
             />
-            <span className="text-xs text-green-600 font-medium">Live</span>
+            <span className="mono" style={{ fontSize: 11, color: "oklch(0.45 0.12 140)", fontWeight: 500 }}>
+              REC 02:14
+            </span>
           </div>
         </div>
 
-        <div className="px-5 pt-4">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-            <svg aria-hidden="true" className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0" />
-            </svg>
-            Identidades
+        <div
+          style={{
+            padding: "14px 20px 6px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                padding: "4px 11px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 600,
+                background: "var(--indigo-soft)",
+                color: "var(--indigo-2)",
+                border: "1px solid oklch(0.85 0.08 280)",
+              }}
+            >
+              Identidades
+            </span>
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>·&nbsp; Stimulus #3</span>
+          </div>
+          <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+            B2 · 14/30
           </span>
         </div>
 
-        <div className="mx-5 mt-4 flex flex-col items-center justify-center py-5 bg-indigo-50 rounded-xl">
-          <div className="flex items-end justify-center gap-[3px] h-12">
-            {barPeaks.map((peak, i) => (
-              <div
-                key={i}
-                className="w-1.5 bg-indigo-400 rounded-full"
-                style={{
-                  animation: "bar-wave 0.8s ease-in-out infinite",
-                  animationDelay: `${i * 60}ms`,
-                  // @ts-expect-error CSS custom property
-                  "--bar-peak": `${peak}px`,
-                }}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-indigo-600 font-medium mt-2">Examiner speaking...</span>
+        <div
+          style={{
+            margin: "14px 20px 8px",
+            padding: "16px 10px",
+            background: "var(--indigo-softer)",
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            height: 60,
+          }}
+        >
+          {barPeaks.map((peak, i) => (
+            <span
+              key={i}
+              style={
+                {
+                  width: 3,
+                  background: "var(--indigo)",
+                  borderRadius: 2,
+                  height: 6,
+                  animation: "habla-bar 0.9s ease-in-out infinite",
+                  animationDelay: `${i * 55}ms`,
+                  "--peak": `${peak}px`,
+                } as CSSProperties
+              }
+            />
+          ))}
         </div>
 
-        <div className="px-5 py-4 space-y-3">
-          <div className="flex justify-start">
-            <div className="bg-indigo-50 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%]">
-              <p className="text-sm text-gray-800">&ldquo;¿Qué puedes observar en esta imagen?&rdquo;</p>
-              <p className="text-[10px] text-gray-400 mt-1">Examiner</p>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div className="bg-gray-100 rounded-2xl rounded-tr-md px-4 py-2.5 max-w-[85%]">
-              <p className="text-sm text-gray-800">&ldquo;En la imagen se puede ver una familia celebrando...&rdquo;</p>
-              <p className="text-[10px] text-gray-400 mt-1 text-right">You</p>
-            </div>
-          </div>
+        <div style={{ padding: "12px 20px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <Bubble role="examiner" text="¿Qué puedes observar en esta imagen sobre las tradiciones familiares?" visible={step >= 1} />
+          <Bubble role="you" text="En la imagen veo una familia celebrando Nochebuena. Me recuerda a mi propia familia..." visible={step >= 2} />
+          <Bubble role="examiner" text="Interesante. ¿Y cómo se comparan con las tuyas?" visible={step >= 3} />
+          {step >= 4 && <TypingBubble />}
         </div>
       </div>
 
+      {/* Floating score card */}
       <div
-        className="absolute -bottom-8 -right-4 lg:-right-8 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-4"
-        style={{ animation: "float 6s ease-in-out 1s infinite" }}
+        className="card"
+        style={{
+          position: "absolute",
+          bottom: -36,
+          right: -22,
+          width: 232,
+          padding: 16,
+          animation: "habla-float 6s ease-in-out infinite",
+          background: "var(--gold-soft)",
+          borderColor: "var(--ink)",
+        }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-900">Session Score</span>
-          <span className="text-lg font-bold text-indigo-600">24<span className="text-sm text-gray-400">/30</span></span>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+          <span className="eyebrow" style={{ fontSize: 10 }}>Live score</span>
+          <span
+            style={{
+              fontFamily: "var(--habla-serif)",
+              fontWeight: 600,
+              fontSize: 32,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            24<span style={{ fontSize: 16, color: "var(--ink-4)" }}>/30</span>
+          </span>
         </div>
-        <div className="space-y-2">
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {[
-            { label: "A: Language", score: 9, max: 12, color: "bg-indigo-500" },
-            { label: "B1: Presentation", score: 5, max: 6, color: "bg-blue-500" },
-            { label: "B2: Conversation", score: 5, max: 6, color: "bg-purple-500" },
-            { label: "C: Interactive", score: 5, max: 6, color: "bg-teal-500" },
-          ].map((criterion) => (
-            <div key={criterion.label}>
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[10px] text-gray-500">{criterion.label}</span>
-                <span className="text-[10px] font-medium text-gray-700">
-                  {criterion.score}/{criterion.max}
+            { l: "A · Language", v: 9, m: 12 },
+            { l: "B1 · Present", v: 5, m: 6 },
+            { l: "B2 · Convo", v: 5, m: 6 },
+            { l: "C · Interact", v: 5, m: 6 },
+          ].map((c, i) => (
+            <div key={c.l}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 10,
+                  color: "var(--ink-2)",
+                  marginBottom: 3,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}>{c.l}</span>
+                <span className="mono">
+                  {c.v}/{c.m}
                 </span>
               </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div style={{ height: 5, background: "oklch(0.88 0.04 85)", borderRadius: 99, overflow: "hidden" }}>
                 <div
-                  className={`h-full rounded-full animate-score-fill ${criterion.color}`}
                   style={{
-                    // @ts-expect-error CSS custom property
-                    "--score-width": `${(criterion.score / criterion.max) * 100}%`,
+                    height: "100%",
+                    width: `${(c.v / c.m) * 100}%`,
+                    background: "var(--ink)",
+                    borderRadius: 99,
+                    transition: "width 1.4s ease",
+                    transitionDelay: `${i * 120}ms`,
                   }}
                 />
               </div>
@@ -130,37 +367,82 @@ function MockSessionUI() {
           ))}
         </div>
       </div>
+
+      {/* Floating "tense detected" chip */}
+      <div
+        style={{
+          position: "absolute",
+          top: -48,
+          right: 24,
+          background: "var(--ink)",
+          color: "var(--paper)",
+          padding: "8px 14px",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 500,
+          whiteSpace: "nowrap",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          animation: "habla-float 4.5s ease-in-out 0.5s infinite",
+          boxShadow: "0 4px 12px oklch(0.2 0.02 275 / 0.2)",
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gold-2)" }} />
+        <span>Subjuntivo detected</span>
+        <span className="mono" style={{ color: "var(--ink-4)", fontSize: 10 }}>+1</span>
+      </div>
     </div>
   );
 }
 
-function MockThemeSelector() {
+function ThemeSelectorMock() {
   const themes = [
-    { label: "Identidades", color: "border-blue-300 bg-blue-50", dot: "bg-blue-500", selected: true },
-    { label: "Experiencias", color: "border-green-200 bg-green-50/50", dot: "bg-green-500", selected: false },
-    { label: "Ingenio humano", color: "border-purple-200 bg-purple-50/50", dot: "bg-purple-500", selected: false },
-    { label: "Organización social", color: "border-orange-200 bg-orange-50/50", dot: "bg-orange-500", selected: false },
-    { label: "Compartir el planeta", color: "border-teal-200 bg-teal-50/50", dot: "bg-teal-500", selected: false },
+    { label: "Identidades", color: "var(--indigo)", bg: "var(--indigo-softer)", selected: true },
+    { label: "Experiencias", color: "oklch(0.55 0.18 150)", bg: "oklch(0.96 0.04 150)", selected: false },
+    { label: "Ingenio humano", color: "oklch(0.55 0.22 320)", bg: "oklch(0.96 0.04 320)", selected: false },
+    { label: "Organización social", color: "oklch(0.62 0.18 50)", bg: "var(--gold-soft)", selected: false },
+    { label: "Compartir el planeta", color: "oklch(0.55 0.14 200)", bg: "oklch(0.96 0.04 200)", selected: false },
   ];
-
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg shadow-gray-100/50">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Choose a theme</p>
-      <div className="space-y-2">
+    <div className="card" style={{ padding: 22, background: "var(--card)" }}>
+      <div className="eyebrow" style={{ marginBottom: 14 }}>01 · Elige un tema</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {themes.map((t) => (
           <div
             key={t.label}
-            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all ${
-              t.selected ? `${t.color} shadow-sm` : "border-gray-100 hover:border-gray-200"
-            }`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "11px 14px",
+              borderRadius: 10,
+              border: t.selected ? "1px solid var(--accent)" : "1px solid var(--line)",
+              background: t.selected ? t.bg : "transparent",
+            }}
           >
-            <span className={`w-2.5 h-2.5 rounded-full ${t.dot}`} />
-            <span className={`text-sm ${t.selected ? "font-medium text-gray-900" : "text-gray-600"}`}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.color }} />
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: t.selected ? 600 : 400,
+                color: t.selected ? "var(--ink)" : "var(--ink-2)",
+              }}
+            >
               {t.label}
             </span>
             {t.selected && (
-              <svg aria-hidden="true" className="w-4 h-4 text-blue-500 ml-auto" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                style={{ marginLeft: "auto" }}
+              >
+                <path d="m4.5 12.75 6 6 9-13.5" />
               </svg>
             )}
           </div>
@@ -170,986 +452,2152 @@ function MockThemeSelector() {
   );
 }
 
-function MockPrepScreen() {
+function PrepMock() {
+  const [t, setT] = useState(15 * 60 - 166);
+  useEffect(() => {
+    const i = setInterval(() => setT((v) => (v > 0 ? v - 1 : v)), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const mm = String(Math.floor(t / 60)).padStart(2, "0");
+  const ss = String(t % 60).padStart(2, "0");
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-100/50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-        <span className="text-xs font-medium text-gray-500">Preparation Phase</span>
-        <span className="text-xs font-mono font-bold text-indigo-600">12:34</span>
+    <div className="card" style={{ overflow: "hidden", background: "var(--card)" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 18px",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--paper-2)",
+        }}
+      >
+        <span className="eyebrow">02 · Prepare</span>
+        <span className="mono" style={{ fontSize: 18, fontWeight: 600, color: "var(--indigo)" }}>
+          {mm}:{ss}
+        </span>
       </div>
-      <div className="p-4 flex gap-4">
-        <div className="w-28 h-20 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 border border-amber-200/50 flex items-center justify-center shrink-0">
-          <svg aria-hidden="true" className="w-8 h-8 text-amber-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+      <div style={{ padding: 18, display: "grid", gridTemplateColumns: "120px 1fr", gap: 16 }}>
+        <div
+          style={{
+            aspectRatio: "4/3",
+            borderRadius: 10,
+            background: "linear-gradient(135deg, var(--gold-soft), var(--rose-soft))",
+            border: "1.5px solid var(--ink)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <svg viewBox="0 0 120 90" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+            <defs>
+              <pattern id="stripes" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="4" height="8" fill="oklch(0.88 0.1 55)" opacity="0.4" />
+              </pattern>
+            </defs>
+            <rect width="120" height="90" fill="url(#stripes)" />
+            <circle cx="40" cy="55" r="12" fill="oklch(0.82 0.1 25)" stroke="var(--ink)" strokeWidth="1" />
+            <circle cx="62" cy="48" r="10" fill="oklch(0.85 0.08 85)" stroke="var(--ink)" strokeWidth="1" />
+            <circle cx="82" cy="58" r="11" fill="oklch(0.78 0.09 150)" stroke="var(--ink)" strokeWidth="1" />
           </svg>
+          <span
+            className="mono"
+            style={{ position: "absolute", bottom: 4, left: 6, fontSize: 9, color: "var(--ink-2)" }}
+          >
+            stimulus.jpg
+          </span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-400 mb-1.5">Your notes</p>
-          <div className="space-y-1.5">
-            <div className="h-2 bg-gray-100 rounded-full w-full" />
-            <div className="h-2 bg-gray-100 rounded-full w-4/5" />
-            <div className="h-2 bg-gray-100 rounded-full w-3/5" />
+        <div>
+          <div className="eyebrow" style={{ fontSize: 10, marginBottom: 8 }}>
+            Mis apuntes
           </div>
-          <p className="text-[10px] text-gray-300 mt-2 italic">Las tradiciones familiares...</p>
+          <div
+            style={{
+              fontFamily: "var(--habla-serif)",
+              fontStyle: "italic",
+              fontSize: 14.5,
+              lineHeight: 1.5,
+              color: "var(--ink-2)",
+            }}
+          >
+            Las tradiciones familiares... <br />
+            <span style={{ color: "var(--ink-4)" }}>— Nochebuena, reunión</span>
+            <br />
+            <span style={{ color: "var(--ink-4)" }}>— mi abuela, paella</span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 16,
+                background: "var(--indigo)",
+                marginLeft: 2,
+                verticalAlign: "middle",
+                animation: "habla-pulse-dot 1s ease-in-out infinite",
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function MockVoiceSession() {
-  const barPeaks = [14, 26, 20, 34, 16, 38, 22, 32, 18, 36, 12, 24];
-
+function VoiceSessionMock() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-100/50 overflow-hidden">
-      <div className="px-5 py-6 flex flex-col items-center">
-        <div className="relative mb-4">
-          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
-            <div className="flex items-end justify-center gap-[2px] h-10">
-              {barPeaks.map((peak, i) => (
-                <div
+    <div className="card" style={{ overflow: "hidden", background: "var(--card)" }}>
+      <div
+        style={{
+          padding: "12px 18px",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--paper-2)",
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <span className="eyebrow">03 · Speaking</span>
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+          04:12 / 08:00
+        </span>
+      </div>
+      <div
+        style={{
+          padding: "26px 18px 18px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ position: "relative", marginBottom: 14 }}>
+          <span
+            style={{
+              position: "absolute",
+              inset: -8,
+              borderRadius: "50%",
+              border: "1.5px solid var(--indigo)",
+              opacity: 0.3,
+              animation: "habla-pulse-dot 2s ease-in-out infinite",
+            }}
+          />
+          <div
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: "50%",
+              background: "var(--indigo-softer)",
+              border: "1.5px solid var(--ink)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "var(--shadow-stamp-sm)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 2, height: 36 }}>
+              {[14, 26, 18, 32, 22, 28, 16].map((p, i) => (
+                <span
                   key={i}
-                  className="w-1 bg-indigo-400 rounded-full"
-                  style={{
-                    animation: "bar-wave 0.8s ease-in-out infinite",
-                    animationDelay: `${i * 55}ms`,
-                    // @ts-expect-error CSS custom property
-                    "--bar-peak": `${peak}px`,
-                  }}
+                  style={
+                    {
+                      width: 3,
+                      background: "var(--indigo)",
+                      borderRadius: 2,
+                      height: 6,
+                      animation: "habla-bar 0.8s ease-in-out infinite",
+                      animationDelay: `${i * 70}ms`,
+                      "--peak": `${p}px`,
+                    } as CSSProperties
+                  }
                 />
               ))}
             </div>
           </div>
-          <div className="absolute inset-0 rounded-full border-2 border-indigo-200" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} />
         </div>
-        <span className="text-xs text-indigo-600 font-medium mb-4">Examiner speaking...</span>
+        <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 14 }}>
+          <span style={{ color: "var(--indigo)", fontWeight: 600 }}>Examiner</span> · asking follow-up
+        </div>
       </div>
-
-      <div className="px-5 pb-4 space-y-2.5">
-        <div className="flex justify-start">
-          <div className="bg-indigo-50 rounded-2xl rounded-tl-md px-3.5 py-2 max-w-[85%]">
-            <p className="text-xs text-gray-700">&ldquo;¿Cómo se relaciona esta imagen con tu vida personal?&rdquo;</p>
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <div className="bg-gray-100 rounded-2xl rounded-tr-md px-3.5 py-2 max-w-[85%]">
-            <p className="text-xs text-gray-700">&ldquo;Me recuerda a las celebraciones de mi familia...&rdquo;</p>
-          </div>
-        </div>
-        <div className="flex justify-start">
-          <div className="bg-indigo-50 rounded-2xl rounded-tl-md px-3.5 py-2">
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-300" style={{ animation: "typing-dots 1.4s infinite", animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-300" style={{ animation: "typing-dots 1.4s infinite", animationDelay: "200ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-300" style={{ animation: "typing-dots 1.4s infinite", animationDelay: "400ms" }} />
-            </div>
-          </div>
-        </div>
+      <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <Bubble role="examiner" text="¿Cómo te relaciona esta imagen con tu vida?" visible />
+        <Bubble role="you" text="Me recuerda a las celebraciones de mi familia en España..." visible />
       </div>
     </div>
   );
 }
 
-function MockFeedbackCard() {
+function FeedbackMock() {
   const { ref, isVisible } = useInView(0.2);
   const criteria = [
-    { label: "A: Language", score: 9, max: 12, color: "bg-indigo-500", pct: 75 },
-    { label: "B1: Presentation", score: 5, max: 6, color: "bg-blue-500", pct: 83 },
-    { label: "B2: Conversation", score: 5, max: 6, color: "bg-purple-500", pct: 83 },
-    { label: "C: Interactive", score: 5, max: 6, color: "bg-teal-500", pct: 83 },
+    { l: "A · Language", v: 9, m: 12, pct: 75 },
+    { l: "B1 · Presentation", v: 5, m: 6, pct: 83 },
+    { l: "B2 · Conversation", v: 5, m: 6, pct: 83 },
+    { l: "C · Interactive", v: 5, m: 6, pct: 83 },
   ];
-
   return (
-    <div ref={ref} className="rounded-2xl border border-gray-200 bg-white shadow-lg shadow-gray-100/50 overflow-hidden">
-      {/* Score banner */}
-      <div className="bg-green-50 border-b border-green-200 px-5 py-4">
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-green-700">24</span>
-          <span className="text-sm text-gray-400">/30</span>
-          <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 border border-green-200 ml-1">
-            Good
-          </span>
-        </div>
+    <div ref={ref} className="card" style={{ overflow: "hidden", background: "var(--card)" }}>
+      <div
+        style={{
+          background: "var(--sage-soft)",
+          padding: "18px 20px",
+          borderBottom: "1.5px solid var(--ink)",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--habla-serif)",
+            fontSize: 42,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+          }}
+        >
+          24
+        </span>
+        <span style={{ fontSize: 18, color: "var(--ink-3)" }}>/30</span>
+        <span
+          style={{
+            marginLeft: "auto",
+            padding: "3px 10px",
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 600,
+            background: "var(--ink)",
+            color: "var(--paper)",
+          }}
+        >
+          Strong B2
+        </span>
       </div>
-
-      {/* Criterion bars */}
-      <div className="px-5 py-4 space-y-3">
-        {criteria.map((c) => (
-          <div key={c.label}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] text-gray-500">{c.label}</span>
-              <span className="text-[11px] font-medium text-gray-700">{c.score}/{c.max}</span>
+      <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {criteria.map((c, i) => (
+          <div key={c.l}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 4,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ fontSize: 12, color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {c.l}
+              </span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                {c.v}/{c.m}
+              </span>
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              style={{
+                height: 6,
+                background: "var(--paper-2)",
+                borderRadius: 99,
+                overflow: "hidden",
+                border: "1px solid var(--line)",
+              }}
+            >
               <div
-                className={`h-full rounded-full ${c.color} transition-all duration-1000 ease-out`}
-                style={{ width: isVisible ? `${c.pct}%` : "0%" }}
+                style={{
+                  height: "100%",
+                  background: "var(--ink)",
+                  borderRadius: 99,
+                  width: isVisible ? `${c.pct}%` : "0%",
+                  transition: "width 1.2s ease",
+                  transitionDelay: `${i * 120 + 200}ms`,
+                }}
               />
             </div>
           </div>
         ))}
       </div>
-
-      {/* Tense pills + CEFR */}
-      <div className="px-5 pb-4 flex flex-wrap items-center gap-1.5">
+      <div style={{ padding: "0 20px 18px", display: "flex", flexWrap: "wrap", gap: 6 }}>
         {[
-          { tense: "Presente", count: 12 },
-          { tense: "Pretérito", count: 5 },
-          { tense: "Subjuntivo", count: 2 },
-        ].map((t) => (
-          <span key={t.tense} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] rounded-full">
-            {t.tense} <span className="text-indigo-400 font-medium">{t.count}</span>
+          { t: "Presente", n: 12 },
+          { t: "Pretérito", n: 5 },
+          { t: "Subjuntivo", n: 2 },
+          { t: "Imperfecto", n: 4 },
+        ].map((tag) => (
+          <span
+            key={tag.t}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 9px",
+              fontSize: 11,
+              background: "var(--indigo-softer)",
+              color: "var(--indigo-2)",
+              borderRadius: 999,
+              border: "1px solid oklch(0.88 0.04 280)",
+            }}
+          >
+            {tag.t}{" "}
+            <span className="mono" style={{ color: "var(--indigo)", fontWeight: 600 }}>
+              {tag.n}
+            </span>
           </span>
         ))}
-        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full ml-auto">
-          CEFR B2
-        </span>
       </div>
     </div>
   );
 }
 
-function MockStudentDashboard() {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-        <span className="text-xs font-medium text-gray-500">Student Dashboard</span>
-      </div>
-      <div className="p-4">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[
-            { value: "12", label: "Sessions" },
-            { value: "22/30", label: "Average" },
-            { value: "26/30", label: "Best" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-lg font-bold text-gray-900">{s.value}</p>
-              <p className="text-[10px] text-gray-400">{s.label}</p>
-            </div>
-          ))}
-        </div>
-        {/* Mini sparkline */}
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-[10px] text-gray-400 mb-2">Score Trend</p>
-          <svg viewBox="0 0 200 40" className="w-full h-8">
-            <polyline
-              fill="none"
-              stroke="#6366f1"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              points="0,35 25,30 50,28 75,32 100,24 125,20 150,18 175,15 200,12"
-            />
-            <circle cx="200" cy="12" r="3" fill="#6366f1" />
-          </svg>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ═══════════════════════════════════════════════════════════
+   Sections
+   ═══════════════════════════════════════════════════════════ */
 
-function MockTeacherDashboard() {
-  const recentActivity = [
-    { name: "Maria S.", theme: "Identidades", score: "24/30", color: "text-blue-600" },
-    { name: "Carlos R.", theme: "Experiencias", score: "19/30", color: "text-green-600" },
-    { name: "Ana L.", theme: "Ingenio humano", score: "22/30", color: "text-purple-600" },
+function Nav() {
+  const links = [
+    { l: "How it works", h: "#how" },
+    { l: "Features", h: "#features" },
+    { l: "Teachers", h: "#teachers" },
+    { l: "Pricing", h: "#pricing" },
   ];
-
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-        <span className="text-xs font-medium text-gray-500">Teacher Dashboard</span>
-      </div>
-      <div className="p-4">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[
-            { value: "24", label: "Students" },
-            { value: "18", label: "Sessions" },
-            { value: "21/30", label: "Class Avg" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-lg font-bold text-gray-900">{s.value}</p>
-              <p className="text-[10px] text-gray-400">{s.label}</p>
-            </div>
-          ))}
-        </div>
-        {/* Activity feed */}
-        <div className="space-y-2">
-          <p className="text-[10px] text-gray-400">Recent Activity</p>
-          {recentActivity.map((a) => (
-            <div key={a.name} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-[8px] font-medium text-gray-500">{a.name.charAt(0)}</span>
-                </div>
-                <span className="text-xs text-gray-700">{a.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${a.color}`}>{a.theme}</span>
-                <span className="text-xs font-medium text-gray-900">{a.score}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AnimatedRow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  const { ref, isVisible } = useInView(0.15);
-  return (
-    <div ref={ref} className={`animate-in ${isVisible ? "visible" : ""} ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function BentoGrid() {
-  const { ref, isVisible } = useInView(0.1);
-
-  return (
-    <div
-      ref={ref}
-      className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in ${isVisible ? "visible" : ""}`}
+    <nav
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "oklch(from var(--paper) l c h / 0.85)",
+        backdropFilter: "blur(10px)",
+        borderBottom: "1px solid var(--line)",
+      }}
     >
-      {/* Voice Conversations — 2 cols x 2 rows */}
-      <div className="sm:col-span-2 sm:row-span-2 rounded-2xl border border-indigo-200 bg-indigo-50 p-8 flex flex-col justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-Time Voice Conversations</h3>
-          <p className="text-sm text-gray-600 leading-relaxed mb-6">
-            Speak naturally with an AI examiner using real-time voice. No typing — just talk, like the real exam.
-          </p>
-        </div>
-        <div className="flex items-end justify-center gap-[3px] h-24 bg-white/60 rounded-xl py-4">
-          {[14, 26, 20, 34, 16, 38, 22, 32, 18, 36, 12, 24, 28, 16, 30].map((peak, i) => (
-            <div
-              key={i}
-              className="w-2 bg-indigo-400 rounded-full"
-              style={{
-                animation: "bar-wave 0.8s ease-in-out infinite",
-                animationDelay: `${i * 50}ms`,
-                // @ts-expect-error CSS custom property
-                "--bar-peak": `${peak}px`,
-              }}
-            />
+      <div
+        className="wrap"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: 68,
+        }}
+      >
+        <HablaLogo />
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 28, whiteSpace: "nowrap" }}
+          className="nav-desktop"
+        >
+          {links.map((l) => (
+            <a
+              key={l.h}
+              href={l.h}
+              style={{ fontSize: 14, color: "var(--ink-2)", fontWeight: 500, whiteSpace: "nowrap" }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--ink)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
+            >
+              {l.l}
+            </a>
           ))}
         </div>
-      </div>
-
-      {/* IB Rubric Scoring — 2 cols x 1 row */}
-      <div className="sm:col-span-2 rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Official IB Rubric Scoring</h3>
-        <div className="space-y-2.5">
-          {[
-            { label: "A: Language", pct: 75, color: "bg-indigo-500" },
-            { label: "B1: Presentation", pct: 83, color: "bg-blue-500" },
-            { label: "B2: Conversation", pct: 67, color: "bg-purple-500" },
-            { label: "C: Interactive", pct: 83, color: "bg-teal-500" },
-          ].map((c) => (
-            <div key={c.label}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] text-gray-500">{c.label}</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${c.color} transition-all duration-1000 ease-out`}
-                  style={{ width: isVisible ? `${c.pct}%` : "0%" }}
-                />
-              </div>
-            </div>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+          <Link
+            href="/auth/login"
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: "var(--ink-2)",
+              padding: "8px 14px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Log in
+          </Link>
+          <Link
+            href="/auth/signup"
+            className="btn-primary"
+            style={{ padding: "10px 18px 11px", fontSize: 14, whiteSpace: "nowrap" }}
+          >
+            Start free →
+          </Link>
         </div>
       </div>
-
-      {/* CEFR Vocabulary — 1 col x 1 row */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-1">CEFR Vocabulary</h3>
-        <p className="text-xs text-gray-500 mb-4">Your vocabulary mapped to European proficiency levels</p>
-        <div className="space-y-1.5">
-          {["C2", "C1", "B2", "B1", "A2", "A1"].map((level) => (
-            <div key={level} className="flex items-center gap-2">
-              <span className={`text-xs font-mono w-6 ${level === "B2" ? "font-bold text-indigo-600" : "text-gray-400"}`}>
-                {level}
-              </span>
-              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    level === "B2" ? "bg-indigo-500 shadow-sm shadow-indigo-200" :
-                    level === "B1" || level === "A2" ? "bg-indigo-200" : "bg-gray-200"
-                  }`}
-                  style={{
-                    width: level === "B2" ? "100%" :
-                           level === "B1" ? "70%" :
-                           level === "A2" ? "40%" :
-                           level === "A1" ? "20%" : "0%",
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Speaking Pace — 1 col x 1 row */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 flex flex-col items-center justify-center text-center">
-        <h3 className="text-base font-semibold text-gray-900 mb-3">Speaking Pace</h3>
-        <p className="text-4xl font-bold text-gray-900">124</p>
-        <p className="text-sm text-gray-400 mb-2">words per minute</p>
-        <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200">
-          Natural pace
-        </span>
-      </div>
-
-      {/* Grammar & Tenses — 2 cols x 1 row */}
-      <div className="sm:col-span-2 rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Grammar & Tense Detection</h3>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { tense: "Presente", count: 12 },
-            { tense: "Pretérito", count: 8 },
-            { tense: "Imperfecto", count: 5 },
-            { tense: "Subjuntivo", count: 2 },
-            { tense: "Futuro", count: 3 },
-          ].map((t) => (
-            <span key={t.tense} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-sm rounded-full">
-              {t.tense} <span className="text-indigo-400 font-semibold">{t.count}</span>
-            </span>
-          ))}
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 border-2 border-dashed border-red-200 text-red-400 text-sm rounded-full">
-            Condicional <span className="font-semibold">0</span>
-          </span>
-        </div>
-        <p className="text-xs text-gray-400 mt-3">Tenses you use — and the ones you&apos;re missing</p>
-      </div>
-
-      {/* Progress Over Time — 2 cols x 1 row */}
-      <div className="sm:col-span-2 rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-900">Progress Over Time</h3>
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm text-gray-400">22</span>
-            <svg aria-hidden="true" className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-            </svg>
-            <span className="text-sm font-bold text-green-600">26</span>
-          </div>
-        </div>
-        <svg viewBox="0 0 400 80" className="w-full h-16">
-          <defs>
-            <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M0,65 L50,55 L100,50 L150,58 L200,42 L250,35 L300,30 L350,22 L400,15 L400,80 L0,80 Z"
-            fill="url(#sparkGradient)"
-          />
-          <polyline
-            fill="none"
-            stroke="#6366f1"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points="0,65 50,55 100,50 150,58 200,42 250,35 300,30 350,22 400,15"
-          />
-          <circle cx="400" cy="15" r="4" fill="#6366f1" />
-        </svg>
-      </div>
-    </div>
+    </nav>
   );
 }
 
-// ── Main Page ──
-
-export default function LandingPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+function Hero() {
   return (
-    <div className="min-h-screen bg-white">
-      {/* ── Navigation ── */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Habla" width={100} height={32} priority />
-            </div>
+    <section
+      style={{ position: "relative", paddingTop: 60, paddingBottom: 120, overflow: "hidden" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(circle at 85% 20%, var(--indigo-softer) 0%, transparent 50%), radial-gradient(circle at 10% 90%, var(--gold-soft) 0%, transparent 40%)",
+          opacity: 0.8,
+        }}
+      />
 
-            <div className="hidden md:flex items-center gap-8">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-
-            <div className="hidden md:flex items-center gap-3">
-              <Link
-                href="/auth/login"
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="rounded-full bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
-              >
-                Start Practicing
-              </Link>
-            </div>
-
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-600"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white px-6 py-4 space-y-3">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-sm text-gray-600 hover:text-gray-900 py-1.5"
-              >
-                {link.label}
-              </a>
-            ))}
-            <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-              <Link href="/auth/login" className="text-sm font-medium text-gray-700 py-1.5">
-                Log in
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white text-center hover:bg-indigo-700 transition-colors"
-              >
-                Start Practicing
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
-
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden pt-16 pb-28 lg:pt-28 lg:pb-40">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-white pointer-events-none" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-100/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-            <div className="max-w-xl">
-              <div className="animate-fade-in-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-medium mb-8">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                IB Language B Aligned
-              </div>
-
-              <h1 className="animate-fade-in-up-delay-1 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 leading-[1.1]">
-                Ace Your IB Spanish{" "}
-                <span className="text-indigo-600">Individual Oral</span>
-              </h1>
-
-              <p className="animate-fade-in-up-delay-2 mt-6 text-lg text-gray-600 leading-relaxed">
-                Practice unlimited times with a realistic AI examiner. Get scored
-                instantly on all 4 IB criteria — and walk into your oral exam confident.
-              </p>
-
-              <div className="animate-fade-in-up-delay-3 mt-8 flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98]"
-                >
-                  Start Practicing
-                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                  </svg>
-                </Link>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-7 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
-                >
-                  See How It Works
-                </a>
-              </div>
-
-              <p className="animate-fade-in-up-delay-3 mt-5 text-sm text-gray-500">
-                Free to get started. No credit card required.
-              </p>
-
-              <div className="animate-fade-in-up-delay-3 mt-6 flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  {[
-                    { initials: "SM", bg: "bg-indigo-500" },
-                    { initials: "AL", bg: "bg-blue-500" },
-                    { initials: "JR", bg: "bg-purple-500" },
-                    { initials: "MK", bg: "bg-teal-500" },
-                    { initials: "LS", bg: "bg-indigo-400" },
-                  ].map((avatar) => (
-                    <div
-                      key={avatar.initials}
-                      className={`w-8 h-8 rounded-full ${avatar.bg} ring-2 ring-white flex items-center justify-center`}
-                    >
-                      <span className="text-[10px] font-semibold text-white">{avatar.initials}</span>
-                    </div>
-                  ))}
-                </div>
-                <span className="text-sm text-gray-500">Trusted by IB students and teachers worldwide</span>
-              </div>
-            </div>
-
-            <div className="mt-16 lg:mt-0 flex justify-center lg:justify-end">
-              <div className="w-full max-w-md">
-                <MockSessionUI />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Exam Flow Timeline ── */}
-      <section className="py-14 bg-gradient-to-b from-white to-gray-50/50">
-        <div className="mx-auto max-w-4xl px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-3">
-            Mirrors the Real IB Exam
-          </h2>
-          <p className="text-center text-xs font-medium text-gray-400 uppercase tracking-widest mb-10">
-            Mirrors the real IB IO exam format
-          </p>
-
-          {/* Timeline — vertical on mobile, horizontal on md+ */}
-          {/* Mobile vertical layout */}
-          <ol className="md:hidden flex flex-col gap-4 mb-10">
-            {EXAM_PHASES.map((phase) => (
-              <li key={phase.name} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white border-2 border-indigo-300 flex items-center justify-center shadow-sm shrink-0">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                </div>
-                <span className="text-sm font-semibold text-gray-800">{phase.name}</span>
-                <span className="text-xs text-gray-400">{phase.duration}</span>
-              </li>
-            ))}
-          </ol>
-
-          {/* Desktop horizontal layout */}
-          <ol className="hidden md:flex relative items-start justify-between mb-10">
-            {/* Connecting line */}
-            <div className="absolute top-4 left-[12%] right-[12%] h-0.5 bg-gray-200" aria-hidden="true">
-              <div className="h-full bg-indigo-400 rounded-full animate-timeline-fill" />
-            </div>
-
-            {EXAM_PHASES.map((phase, i) => (
-              <li key={phase.name} className="relative flex flex-col items-center z-10 w-1/4">
-                <div
-                  className="w-8 h-8 rounded-full bg-white border-2 border-indigo-300 flex items-center justify-center shadow-sm"
-                  style={{ animation: `fadeInUp 0.5s ease-out ${0.3 + i * 0.2}s both` }}
-                >
-                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                </div>
-                <span className="mt-2.5 text-xs font-semibold text-gray-800 text-center leading-tight">
-                  {phase.name}
-                </span>
-                <span className="text-[10px] text-gray-400 mt-0.5">{phase.duration}</span>
-              </li>
-            ))}
-          </ol>
-
-          {/* Theme badges */}
-          <p className="text-center text-xs font-medium text-gray-400 uppercase tracking-widest mb-3">
-            Across all 5 IB themes
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {THEME_BADGES.map((theme) => (
-              <span
-                key={theme.label}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${theme.color}`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${theme.dot}`} />
-                {theme.label}
+      <div className="wrap" style={{ position: "relative" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 64,
+            alignItems: "center",
+          }}
+          className="hero-grid"
+        >
+          <div>
+            <div className="rise">
+              <span className="pill" style={{ marginBottom: 26 }}>
+                <span className="dot" />
+                Built for IB Language B · Español
               </span>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
 
-      {/* ── How It Works — Alternating Feature Rows ── */}
-      <section id="how-it-works" className="py-24 lg:py-32" style={{ scrollMarginTop: "80px" }}>
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-20">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-              How It Works
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Four steps that mirror the real IB Individual Oral, so you practice exactly what you&apos;ll face on exam day.
+            <h1
+              className="display rise rise-d1"
+              style={{ fontSize: "clamp(44px, 5.6vw, 76px)", margin: 0 }}
+            >
+              Speak Spanish
+              <br />
+              like the exam <span style={{ color: "var(--accent)" }}>isn&apos;t</span>
+              <br />
+              the hard part.
+            </h1>
+
+            <p
+              className="rise rise-d2"
+              style={{
+                marginTop: 24,
+                fontSize: 18,
+                lineHeight: 1.55,
+                color: "var(--ink-3)",
+                maxWidth: 480,
+              }}
+            >
+              Unlimited practice with an AI examiner built for the IB Spanish Individual Oral.
+              Real-time voice. Rubric-aligned scoring. Actionable feedback after every session.
             </p>
-          </div>
 
-          <div className="space-y-16 lg:space-y-24">
-            {/* Step 01 — Pick Your Topic */}
-            <AnimatedRow>
-              <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="mb-10 lg:mb-0">
-                  <span className="text-6xl font-bold text-indigo-100">01</span>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Pick Your Topic</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Choose from 5 IB themes and select a culturally rich image as your discussion stimulus.
-                    Each theme covers a different aspect of the IB curriculum.
-                  </p>
-                </div>
-                <div className="flex justify-center lg:justify-end">
-                  <div className="w-full max-w-sm">
-                    <MockThemeSelector />
-                  </div>
-                </div>
-              </div>
-            </AnimatedRow>
+            <div
+              className="rise rise-d3"
+              style={{ marginTop: 34, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}
+            >
+              <Link href="/auth/signup" className="btn-primary">
+                Start practicing free
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M5 12h14m-6-6 6 6-6 6" />
+                </svg>
+              </Link>
+              <a href="#how" className="btn-ghost">
+                Watch demo
+              </a>
+            </div>
 
-            {/* Step 02 — Prepare Your Notes */}
-            <AnimatedRow>
-              <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="lg:order-2 mb-10 lg:mb-0">
-                  <span className="text-6xl font-bold text-indigo-100">02</span>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Prepare Your Notes</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Study the image and plan your response — just like the real exam.
-                    You get 15 minutes to prepare, with the image and cultural context visible.
-                  </p>
-                </div>
-                <div className="lg:order-1 flex justify-center lg:justify-start">
-                  <div className="w-full max-w-sm">
-                    <MockPrepScreen />
-                  </div>
-                </div>
-              </div>
-            </AnimatedRow>
-
-            {/* Step 03 — Speak With Your AI Examiner */}
-            <AnimatedRow>
-              <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="mb-10 lg:mb-0">
-                  <span className="text-6xl font-bold text-indigo-100">03</span>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Speak With Your AI Examiner</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Present your analysis, then converse naturally. The examiner adapts
-                    its questions to your level in real time — using voice or text.
-                  </p>
-                </div>
-                <div className="flex justify-center lg:justify-end">
-                  <div className="w-full max-w-sm">
-                    <MockVoiceSession />
-                  </div>
-                </div>
-              </div>
-            </AnimatedRow>
-
-            {/* Step 04 — Get Detailed Feedback */}
-            <AnimatedRow>
-              <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-                <div className="lg:order-2 mb-10 lg:mb-0">
-                  <span className="text-6xl font-bold text-indigo-100">04</span>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-2 mb-4">Get Detailed Feedback</h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Receive scores across all 4 IB criteria with specific strengths,
-                    improvements, tense analysis, vocabulary level, and speaking pace.
-                  </p>
-                </div>
-                <div className="lg:order-1 flex justify-center lg:justify-start">
-                  <div className="w-full max-w-sm">
-                    <MockFeedbackCard />
-                  </div>
-                </div>
-              </div>
-            </AnimatedRow>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features — Bento Grid ── */}
-      <section id="features" className="py-24 lg:py-32 bg-gray-50/50" style={{ scrollMarginTop: "80px" }}>
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-              Everything You Need to Prepare
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Detailed analytics that go far beyond a simple score. Understand exactly where to improve.
-            </p>
-          </div>
-
-          <BentoGrid />
-        </div>
-      </section>
-
-      {/* ── For Students & Teachers — Split Screen ── */}
-      <section id="teachers" className="py-24 lg:py-32" style={{ scrollMarginTop: "80px" }}>
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
-              Two Dashboards. One Platform.
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Whether you&apos;re preparing for your exam or managing a classroom, Habla has you covered.
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Student panel */}
-            <AnimatedRow>
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 p-8 h-full">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600">
-                    <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900">For Students</h3>
-                </div>
-
-                <div className="mb-6">
-                  <MockStudentDashboard />
-                </div>
-
-                <ul className="space-y-3 mb-6">
-                  {[
-                    "Practice anytime, as many times as you want",
-                    "Scored on all 4 IB criteria after every session",
-                    "Track your progress with detailed charts",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <svg aria-hidden="true" className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      <span className="text-sm text-gray-700">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
-                >
-                  Start practicing
-                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                  </svg>
-                </Link>
-              </div>
-            </AnimatedRow>
-
-            {/* Teacher panel */}
-            <AnimatedRow>
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 p-8 h-full">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600">
-                    <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900">For Teachers</h3>
-                </div>
-
-                <div className="mb-6">
-                  <MockTeacherDashboard />
-                </div>
-
-                <ul className="space-y-3 mb-6">
-                  {[
-                    "Share a class join code with your students",
-                    "Upload custom images with talking points",
-                    "Review every transcript and score",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <svg aria-hidden="true" className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      <span className="text-sm text-gray-700">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
-                >
-                  Set up your class
-                  <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                  </svg>
-                </Link>
-              </div>
-            </AnimatedRow>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Exam Alignment Trust Strip ── */}
-      <section className="py-16 lg:py-20 bg-indigo-50 border-y border-indigo-100">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
-            <div className="mb-8 lg:mb-0">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight leading-tight">
-                Trusted by IB students. Aligned with the real exam.
-              </h2>
-              <div className="flex items-center gap-6 mt-6">
+            <div
+              className="rise rise-d4"
+              style={{ marginTop: 40, display: "flex", alignItems: "center", gap: 16 }}
+            >
+              <div style={{ display: "flex" }}>
                 {[
-                  { value: "500+", label: "Sessions" },
-                  { value: "50+", label: "Students" },
-                  { value: "4.8/5", label: "Rating" },
-                ].map((stat, i) => (
-                  <div key={stat.label} className="flex items-center gap-6">
-                    {i > 0 && <div className="w-px h-10 bg-indigo-200" />}
-                    <div>
-                      <p className="text-2xl font-bold text-indigo-600">{stat.value}</p>
-                      <p className="text-xs text-gray-500">{stat.label}</p>
-                    </div>
+                  { i: "SM", c: "var(--indigo)" },
+                  { i: "AL", c: "var(--gold-2)" },
+                  { i: "JR", c: "var(--rose)" },
+                  { i: "MK", c: "var(--sage)" },
+                ].map((a, idx) => (
+                  <div
+                    key={a.i}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      background: a.c,
+                      color: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      border: "1.5px solid var(--paper)",
+                      marginLeft: idx ? -8 : 0,
+                      boxShadow: "0 1px 2px oklch(0 0 0 / 0.15)",
+                    }}
+                  >
+                    {a.i}
                   </div>
                 ))}
               </div>
+              <div style={{ fontSize: 13, color: "var(--ink-3)", lineHeight: 1.4 }}>
+                <strong style={{ color: "var(--ink)" }}>2,400+ IB students</strong>
+                <br />
+                practicing this week across 14 countries
+              </div>
             </div>
+          </div>
+
+          <div className="rise rise-d2" style={{ position: "relative", minHeight: 480 }}>
+            <ConversationMock />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 96, position: "relative" }}>
+        <div className="wrap">
+          <div className="eyebrow" style={{ textAlign: "center", marginBottom: 26 }}>
+            Trusted by IB programs worldwide
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 48,
+              flexWrap: "wrap",
+              justifyContent: "center",
+              opacity: 0.7,
+            }}
+          >
+            {["Colegio San Jorge", "IB World · Zurich", "Berlin International", "IES Madrid", "St. Andrew's BA"].map(
+              (s) => (
+                <span
+                  key={s}
+                  style={{
+                    fontFamily: "var(--habla-display)",
+                    fontSize: 15,
+                    color: "var(--ink-3)",
+                    fontWeight: 500,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {s}
+                </span>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExamFlow() {
+  const phases = [
+    { n: "01", name: "Preparation", dur: "15 min", d: "Study the stimulus image" },
+    { n: "02", name: "Presentation", dur: "3–4 min", d: "Present your analysis" },
+    { n: "03", name: "Follow-up", dur: "4–5 min", d: "Examiner asks questions" },
+    { n: "04", name: "Discussion", dur: "5–6 min", d: "Broader themes" },
+  ];
+  return (
+    <section
+      style={{
+        padding: "100px 0",
+        background: "var(--paper-2)",
+        borderTop: "1px solid var(--line)",
+        borderBottom: "1px solid var(--line)",
+      }}
+    >
+      <div className="wrap">
+        <Reveal>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>Exact exam format</div>
+            <h2 className="display" style={{ fontSize: "clamp(32px, 4vw, 48px)", margin: 0 }}>
+              Practice the real thing.
+            </h2>
+            <p
+              style={{
+                color: "var(--ink-3)",
+                fontSize: 17,
+                marginTop: 14,
+                maxWidth: 520,
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              Same four phases. Same timing. Same five themes. No surprises on exam day.
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal stagger>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 0,
+              position: "relative",
+            }}
+            className="exam-flow-grid"
+          >
+            {phases.map((p, i) => (
+              <div
+                key={p.n}
+                style={{
+                  padding: "28px 24px 30px",
+                  borderLeft: i === 0 ? "1px solid var(--line)" : "none",
+                  borderRight: "1px solid var(--line)",
+                  borderTop: "1px solid var(--line)",
+                  borderBottom: "1px solid var(--line)",
+                  background: "var(--card)",
+                }}
+              >
+                <div
+                  className="mono"
+                  style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 14, letterSpacing: "0.04em" }}
+                >
+                  {p.n}
+                </div>
+                <div className="display" style={{ fontSize: 20, fontWeight: 600 }}>
+                  {p.name}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--accent)", marginTop: 4, fontWeight: 500 }}>
+                  {p.dur}
+                </div>
+                <div style={{ fontSize: 13.5, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.5 }}>
+                  {p.d}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        <div style={{ marginTop: 48, textAlign: "center" }}>
+          <div className="eyebrow" style={{ marginBottom: 16 }}>Across all five IB themes</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+            {[
+              { l: "Identidades", c: "var(--accent)" },
+              { l: "Experiencias", c: "oklch(0.55 0.12 155)" },
+              { l: "Ingenio humano", c: "oklch(0.55 0.16 320)" },
+              { l: "Organización social", c: "oklch(0.58 0.14 55)" },
+              { l: "Compartir el planeta", c: "oklch(0.55 0.12 200)" },
+            ].map((t) => (
+              <span
+                key={t.l}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  background: "var(--card)",
+                  color: "var(--ink-2)",
+                  border: "1px solid var(--line)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: t.c }} />
+                {t.l}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const steps: { n: string; title: string; body: string; mock: ReactNode; flip: boolean }[] = [
+    {
+      n: "01",
+      title: "Pick a theme that fits",
+      body:
+        "Five IB themes, hundreds of stimulus images. Pick one that genuinely interests you — you'll speak better about what you actually care about.",
+      mock: <ThemeSelectorMock />,
+      flip: false,
+    },
+    {
+      n: "02",
+      title: "Take your 15 minutes",
+      body:
+        "Same prep window as the real exam. Jot notes, map out your argument, plan your tenses. The timer keeps you honest.",
+      mock: <PrepMock />,
+      flip: true,
+    },
+    {
+      n: "03",
+      title: "Talk to the examiner",
+      body:
+        "Real-time voice. The AI adapts to your level — slowing down if you're nervous, pushing you if you're ready. No scripts.",
+      mock: <VoiceSessionMock />,
+      flip: false,
+    },
+    {
+      n: "04",
+      title: "See exactly where to improve",
+      body:
+        "Scored across all four IB criteria. Specific tenses detected. Vocabulary mapped to CEFR. Pace, pauses, filler words — everything.",
+      mock: <FeedbackMock />,
+      flip: true,
+    },
+  ];
+  return (
+    <section id="how" style={{ padding: "120px 0", scrollMarginTop: 80, position: "relative" }}>
+      <FloatingMark glyph="¿" style={{ top: 80, right: 40, fontSize: 200, opacity: 0.04 }} />
+      <div className="wrap">
+        <Reveal>
+          <div style={{ textAlign: "center", marginBottom: 80, maxWidth: 620, marginLeft: "auto", marginRight: "auto" }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>How it works</div>
+            <h2 className="display" style={{ fontSize: "clamp(36px, 4.8vw, 56px)", margin: 0 }}>
+              Four steps, exactly like exam day.
+            </h2>
+          </div>
+        </Reveal>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 100 }}>
+          {steps.map((s) => (
+            <Reveal key={s.n}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
+                  gap: 80,
+                  alignItems: "center",
+                  direction: s.flip ? "rtl" : "ltr",
+                }}
+                className="how-row"
+              >
+                <div style={{ direction: "ltr" }}>
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: 12,
+                      color: "var(--accent)",
+                      letterSpacing: "0.06em",
+                      fontWeight: 500,
+                      marginBottom: 18,
+                    }}
+                  >
+                    STEP / {s.n}
+                  </div>
+                  <h3 className="display" style={{ fontSize: "clamp(26px, 2.6vw, 34px)", margin: "0 0 16px" }}>
+                    {s.title}
+                  </h3>
+                  <p style={{ fontSize: 16.5, color: "var(--ink-3)", lineHeight: 1.6, maxWidth: 420 }}>
+                    {s.body}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    direction: "ltr",
+                    maxWidth: 420,
+                    justifySelf: s.flip ? "end" : "start",
+                  }}
+                >
+                  {s.mock}
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  const { ref, isVisible } = useInView(0.1);
+  return (
+    <section
+      id="features"
+      style={{
+        padding: "120px 0",
+        background: "var(--paper-2)",
+        borderTop: "1px solid var(--line)",
+        borderBottom: "1px solid var(--line)",
+        scrollMarginTop: 80,
+      }}
+    >
+      <div className="wrap">
+        <Reveal>
+          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 60px" }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>What you get</div>
+            <h2 className="display" style={{ fontSize: "clamp(36px, 4.8vw, 56px)", margin: 0 }}>
+              Feedback that actually <em>tells you</em> something.
+            </h2>
+            <p
+              style={{
+                color: "var(--ink-3)",
+                fontSize: 17,
+                marginTop: 16,
+                maxWidth: 520,
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              Not a vague grade. Not a star rating. Specific, actionable feedback keyed to the IB rubric.
+            </p>
+          </div>
+        </Reveal>
+
+        <div
+          ref={ref}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gridAutoRows: "minmax(180px, auto)",
+            gap: 16,
+          }}
+          className="bento"
+        >
+          {/* Voice — hero tile */}
+          <div
+            style={{
+              gridColumn: "span 2",
+              gridRow: "span 2",
+              background: "var(--indigo)",
+              color: "var(--paper)",
+              borderRadius: "var(--radius-lg)",
+              padding: 32,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <FloatingMark glyph="¿" style={{ top: -30, right: -20, fontSize: 240, color: "var(--gold)", opacity: 0.15 }} />
             <div>
-              <ul className="space-y-4">
-                {[
-                  "Scored on the official IB criteria: A, B1, B2, and C",
-                  "Follows the exact exam phases: Prep, Presentation, Discussion",
-                  "Full 30-point rubric scale with band descriptors",
-                  "Your data is private and never shared with third parties",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <svg aria-hidden="true" className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              <div className="eyebrow" style={{ color: "var(--gold)", marginBottom: 12 }}>
+                Real voice, real time
+              </div>
+              <h3 className="display" style={{ fontSize: 32, margin: 0, letterSpacing: "-0.02em" }}>
+                Talk, don&apos;t type.
+              </h3>
+              <p
+                style={{
+                  fontSize: 15,
+                  color: "oklch(0.92 0.03 280)",
+                  lineHeight: 1.5,
+                  marginTop: 12,
+                  maxWidth: 320,
+                }}
+              >
+                Low-latency voice with an AI examiner that listens, interrupts politely, and adapts to your Spanish in real time.
+              </p>
+            </div>
+            <div
+              style={{
+                background: "oklch(from var(--indigo) calc(l - 0.1) c h)",
+                borderRadius: 14,
+                padding: "22px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                height: 76,
+              }}
+            >
+              {[14, 26, 20, 34, 18, 38, 22, 32, 18, 36, 14, 28, 22, 34, 18, 30, 16].map((p, i) => (
+                <span
+                  key={i}
+                  style={
+                    {
+                      width: 3,
+                      background: "var(--gold)",
+                      borderRadius: 2,
+                      height: 6,
+                      animation: "habla-bar 0.9s ease-in-out infinite",
+                      animationDelay: `${i * 45}ms`,
+                      "--peak": `${p}px`,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* IB rubric */}
+          <div
+            style={{
+              gridColumn: "span 2",
+              background: "var(--card)",
+              borderRadius: "var(--radius-lg)",
+              padding: 28,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+            }}
+          >
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Official IB rubric</div>
+            <h3 className="display" style={{ fontSize: 22, margin: "0 0 16px" }}>
+              Scored on all four criteria
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {[
+                { l: "A · Language", pct: 75, max: 12 },
+                { l: "B1 · Presentation", pct: 83, max: 6 },
+                { l: "B2 · Conversation", pct: 67, max: 6 },
+                { l: "C · Interactive", pct: 83, max: 6 },
+              ].map((c, i) => (
+                <div key={c.l} style={{ marginBottom: 2 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: 12,
+                      color: "var(--ink-3)",
+                      marginBottom: 6,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{c.l}</span>
+                    <span className="mono">/{c.max}</span>
+                  </div>
+                  <div
+                    style={{
+                      height: 6,
+                      background: "var(--paper-2)",
+                      borderRadius: 99,
+                      overflow: "hidden",
+                      border: "1px solid var(--line)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        background: "var(--ink)",
+                        borderRadius: 99,
+                        width: isVisible ? `${c.pct}%` : 0,
+                        transition: "width 1s ease",
+                        transitionDelay: `${i * 100}ms`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CEFR */}
+          <div
+            style={{
+              background: "var(--gold-soft)",
+              borderRadius: "var(--radius-lg)",
+              padding: 24,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+            }}
+          >
+            <div className="eyebrow" style={{ marginBottom: 8 }}>CEFR mapping</div>
+            <div
+              style={{
+                fontFamily: "var(--habla-serif)",
+                fontSize: 44,
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+              }}
+            >
+              B2<span style={{ color: "var(--ink-4)", fontSize: 22 }}>/C1</span>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>
+              Vocabulary level — heading toward C1
+            </div>
+            <div style={{ display: "flex", gap: 3, marginTop: 14 }}>
+              {["A1", "A2", "B1", "B2", "C1", "C2"].map((l, i) => (
+                <div
+                  key={l}
+                  style={{
+                    flex: 1,
+                    height: 28,
+                    borderRadius: 4,
+                    background: i <= 3 ? "var(--ink)" : "oklch(0.88 0.05 85)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    color: i <= 3 ? "var(--paper)" : "var(--ink-4)",
+                    fontFamily: "var(--habla-mono)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {l}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pace */}
+          <div
+            style={{
+              background: "var(--card)",
+              borderRadius: "var(--radius-lg)",
+              padding: 24,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+            }}
+          >
+            <div className="eyebrow">Speaking pace</div>
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--habla-serif)",
+                  fontSize: 52,
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1,
+                }}
+              >
+                124
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)" }}>words per minute</div>
+            </div>
+            <span
+              style={{
+                display: "inline-flex",
+                alignSelf: "flex-start",
+                alignItems: "center",
+                gap: 6,
+                padding: "3px 9px",
+                background: "var(--sage-soft)",
+                color: "oklch(0.4 0.1 155)",
+                borderRadius: 99,
+                fontSize: 11,
+                fontWeight: 500,
+                border: "1px solid oklch(0.82 0.07 155)",
+              }}
+            >
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "oklch(0.55 0.14 155)" }} />
+              Natural pace
+            </span>
+          </div>
+
+          {/* Tenses */}
+          <div
+            style={{
+              gridColumn: "span 2",
+              background: "var(--card)",
+              borderRadius: "var(--radius-lg)",
+              padding: 28,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+            }}
+          >
+            <div className="eyebrow" style={{ marginBottom: 10 }}>Grammar detection</div>
+            <h3 className="display" style={{ fontSize: 22, margin: "0 0 14px" }}>
+              Tenses you used — and missed
+            </h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {[
+                { t: "Presente", n: 12, on: true },
+                { t: "Pretérito", n: 8, on: true },
+                { t: "Imperfecto", n: 5, on: true },
+                { t: "Subjuntivo", n: 2, on: true },
+                { t: "Futuro", n: 3, on: true },
+                { t: "Condicional", n: 0, on: false },
+                { t: "Pluscuamperfecto", n: 0, on: false },
+              ].map((x) => (
+                <span
+                  key={x.t}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: 13,
+                    borderRadius: 99,
+                    background: x.on ? "var(--indigo-softer)" : "transparent",
+                    color: x.on ? "var(--indigo-2)" : "var(--ink-4)",
+                    border: x.on ? "1px solid oklch(0.85 0.08 280)" : "1.5px dashed oklch(0.8 0.03 25)",
+                    fontFamily: "var(--habla-serif)",
+                    fontStyle: x.on ? "normal" : "italic",
+                  }}
+                >
+                  {x.t}{" "}
+                  <span
+                    className="mono"
+                    style={{ fontWeight: 600, marginLeft: 4, fontStyle: "normal" }}
+                  >
+                    {x.n}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Progress sparkline */}
+          <div
+            style={{
+              gridColumn: "span 2",
+              background: "var(--card)",
+              borderRadius: "var(--radius-lg)",
+              padding: 28,
+              border: "1.5px solid var(--ink)",
+              boxShadow: "var(--shadow-stamp)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 4 }}>Progress</div>
+                <h3 className="display" style={{ fontSize: 22, margin: 0 }}>12 sessions · 30 days</h3>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontFamily: "var(--habla-serif)", fontSize: 28, fontWeight: 600 }}>+4</span>
+                  <span style={{ fontSize: 12, color: "oklch(0.5 0.14 150)" }}>points</span>
+                </div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-4)" }}>vs. last month</div>
+              </div>
+            </div>
+            <svg viewBox="0 0 400 80" style={{ width: "100%", height: 80 }}>
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--indigo)" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="var(--indigo)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,44 L240,32 L280,28 L320,22 L360,18 L400,12 L400,80 L0,80 Z"
+                fill="url(#g1)"
+              />
+              <path
+                d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,44 L240,32 L280,28 L320,22 L360,18 L400,12"
+                fill="none"
+                stroke="var(--ink)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="400" cy="12" r="4.5" fill="var(--gold)" stroke="var(--ink)" strokeWidth="1.5" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Testimonials() {
+  const quotes = [
+    { q: "I was terrified of the oral. Practiced 20 times, got a 7. Wish I'd found it in Year 1.", a: "Maria S.", r: "IB2 · Madrid", theme: "Identidades" },
+    { q: "The tense detection is what sold me. Saw I never used subjuntivo, fixed it in a week.", a: "Daniel K.", r: "IB2 · Berlin", theme: "Experiencias" },
+    { q: "I use it with all three of my Spanish B classes. The teacher dashboard saves me hours.", a: "Sra. Jiménez", r: "Teacher · Zurich", theme: "Ingenio humano" },
+    { q: "Feedback was more specific than my actual teacher's. In a good way.", a: "Aisha L.", r: "IB2 · London", theme: "Organización social" },
+    { q: "Went from a 4 to a 6. That's real. I'm not exaggerating.", a: "Carlos R.", r: "IB2 · Buenos Aires", theme: "Compartir el planeta" },
+  ];
+  const themeColor: Record<string, string> = {
+    Identidades: "var(--indigo)",
+    Experiencias: "oklch(0.55 0.18 150)",
+    "Ingenio humano": "oklch(0.55 0.22 320)",
+    "Organización social": "oklch(0.62 0.18 50)",
+    "Compartir el planeta": "oklch(0.55 0.14 200)",
+  };
+  return (
+    <section style={{ padding: "120px 0", position: "relative" }}>
+      <div className="wrap">
+        <Reveal>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "end",
+              marginBottom: 50,
+              flexWrap: "wrap",
+              gap: 20,
+            }}
+          >
+            <div style={{ maxWidth: 520 }}>
+              <div className="eyebrow" style={{ marginBottom: 14 }}>What students say</div>
+              <h2 className="display" style={{ fontSize: "clamp(36px, 4.8vw, 56px)", margin: 0 }}>
+                From <em>aterrado</em> to <span style={{ color: "var(--indigo)" }}>tranquilo</span>.
+              </h2>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontFamily: "var(--habla-serif)", fontSize: 40, fontWeight: 600 }}>4.9</div>
+              <div>
+                <div style={{ display: "flex", gap: 2 }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="var(--gold-2)">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
-                    <span className="text-sm text-gray-700 font-medium">{item}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>2,300+ reviews</div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gap: 20,
+          }}
+        >
+          {quotes.map((q) => (
+            <Reveal key={q.a}>
+              <div
+                className="card-soft"
+                style={{
+                  padding: 26,
+                  background: "var(--card)",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--habla-serif)",
+                    fontSize: 54,
+                    color: themeColor[q.theme],
+                    lineHeight: 0.5,
+                    marginBottom: 12,
+                    height: 26,
+                  }}
+                >
+                  “
+                </div>
+                <p
+                  style={{
+                    fontFamily: "var(--habla-serif)",
+                    fontSize: 18,
+                    lineHeight: 1.45,
+                    color: "var(--ink)",
+                    flex: 1,
+                    margin: 0,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {q.q}
+                </p>
+                <div
+                  style={{
+                    marginTop: 22,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "end",
+                    borderTop: "1px solid var(--line)",
+                    paddingTop: 14,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{q.a}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{q.r}</div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "3px 8px",
+                      borderRadius: 99,
+                      background: "var(--paper-2)",
+                      border: "1px solid var(--line)",
+                      color: themeColor[q.theme],
+                      fontWeight: 500,
+                    }}
+                  >
+                    {q.theme}
+                  </span>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TeachersSplit() {
+  return (
+    <section
+      id="teachers"
+      style={{
+        padding: "120px 0",
+        background: "var(--paper-2)",
+        borderTop: "1px solid var(--line)",
+        borderBottom: "1px solid var(--line)",
+        scrollMarginTop: 80,
+      }}
+    >
+      <div className="wrap">
+        <Reveal>
+          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 60px" }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>Two sides, one platform</div>
+            <h2 className="display" style={{ fontSize: "clamp(36px, 4.8vw, 56px)", margin: 0 }}>
+              Built for <em>both</em> sides of the desk.
+            </h2>
+          </div>
+        </Reveal>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+            gap: 20,
+          }}
+        >
+          {/* Student */}
+          <Reveal>
+            <div
+              className="card"
+              style={{
+                padding: 32,
+                background: "var(--indigo-softer)",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                gap: 22,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="eyebrow" style={{ color: "var(--indigo-2)" }}>For students</div>
+                <span
+                  style={{
+                    fontFamily: "var(--habla-serif)",
+                    fontSize: 44,
+                    fontWeight: 600,
+                    color: "var(--indigo)",
+                    fontStyle: "italic",
+                    lineHeight: 1,
+                  }}
+                >
+                  hola.
+                </span>
+              </div>
+              <h3 className="display" style={{ fontSize: 28, margin: 0, letterSpacing: "-0.01em" }}>
+                Practice until you stop sweating.
+              </h3>
+
+              <div className="card-soft" style={{ padding: 18, background: "var(--card)" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 14,
+                    marginBottom: 16,
+                  }}
+                >
+                  {[{ v: "12", l: "Sessions" }, { v: "22/30", l: "Average" }, { v: "26/30", l: "Best" }].map((s) => (
+                    <div key={s.l}>
+                      <div
+                        style={{
+                          fontFamily: "var(--habla-serif)",
+                          fontSize: 22,
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                        }}
+                      >
+                        {s.v}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2 }}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                  <div
+                    style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 6 }}
+                    className="mono"
+                  >
+                    SCORE TREND
+                  </div>
+                  <Sparkline points={[18, 19, 17, 20, 22, 21, 24, 23, 25, 26]} width={260} height={36} stroke="var(--indigo)" />
+                </div>
+              </div>
+
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {[
+                  "Unlimited practice sessions",
+                  "Scored on all four IB criteria",
+                  "Track progress with detailed charts",
+                  "Export transcripts for revision",
+                ].map((t) => (
+                  <li
+                    key={t}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      fontSize: 14,
+                      color: "var(--ink-2)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: "var(--indigo)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                        <path d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                    </span>
+                    {t}
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-gray-400 italic mt-4">
-                Habla is not affiliated with or endorsed by the IB Organization
-              </p>
+
+              <Link href="/auth/signup" className="btn-primary" style={{ alignSelf: "flex-start" }}>
+                Start practicing free →
+              </Link>
             </div>
-          </div>
-        </div>
-      </section>
+          </Reveal>
 
-      {/* ── FAQ ── */}
-      <section className="py-24 lg:py-32 bg-white">
-        <div className="mx-auto max-w-3xl px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight text-center mb-16">
-            Frequently Asked Questions
-          </h2>
-          <div className="divide-y divide-gray-200">
-            {[
-              {
-                q: "Is Habla endorsed by the IB?",
-                a: "Habla is an independent practice tool aligned with the IB Individual Oral format. We are not affiliated with or endorsed by the International Baccalaureate Organization.",
-              },
-              {
-                q: "How accurate is the AI scoring?",
-                a: "Our AI examiner scores your performance using the official IB rubric criteria (A, B1, B2, C) on the full 30-point scale. While no AI is perfect, it provides consistent, detailed feedback to help you identify areas for improvement.",
-              },
-              {
-                q: "Is it really free?",
-                a: "Yes — Habla is completely free for students. No credit card, no trial period. Teachers can create classes and manage students at no cost.",
-              },
-              {
-                q: "Is my data private?",
-                a: "Absolutely. Your session recordings, transcripts, and scores are private to you (and your teacher, if you join a class). We never share your data with third parties.",
-              },
-              {
-                q: "Can I use Habla for French or other languages?",
-                a: "Currently Habla supports IB Spanish B only. We\u2019re exploring other languages for the future.",
-              },
-            ].map((faq, i, arr) => (
-              <div key={faq.q} className={`py-6 ${i === arr.length - 1 ? "border-b-0" : ""}`}>
-                <h3 className="text-base font-semibold text-gray-900 mb-2">{faq.q}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+          {/* Teacher */}
+          <Reveal>
+            <div
+              className="card"
+              style={{
+                padding: 32,
+                background: "var(--gold-soft)",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                gap: 22,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="eyebrow">For teachers</div>
+                <span
+                  style={{
+                    fontFamily: "var(--habla-serif)",
+                    fontSize: 44,
+                    fontWeight: 600,
+                    color: "var(--gold-2)",
+                    fontStyle: "italic",
+                    lineHeight: 1,
+                  }}
+                >
+                  clase.
+                </span>
               </div>
-            ))}
+              <h3 className="display" style={{ fontSize: 28, margin: 0, letterSpacing: "-0.01em" }}>
+                Mock orals for your whole class — in a week, not a month.
+              </h3>
+
+              <div className="card-soft" style={{ padding: 18, background: "var(--card)" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 14,
+                    marginBottom: 14,
+                  }}
+                >
+                  {[{ v: "24", l: "Students" }, { v: "86", l: "Sessions" }, { v: "21/30", l: "Class avg" }].map((s) => (
+                    <div key={s.l}>
+                      <div
+                        style={{
+                          fontFamily: "var(--habla-serif)",
+                          fontSize: 22,
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                        }}
+                      >
+                        {s.v}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2 }}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                  {[
+                    { n: "Maria S.", t: "Identidades", s: 24 },
+                    { n: "Carlos R.", t: "Experiencias", s: 19 },
+                    { n: "Ana L.", t: "Ingenio", s: 22 },
+                  ].map((a) => (
+                    <div
+                      key={a.n}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "5px 0",
+                        fontSize: 12,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            background: "var(--gold-soft)",
+                            border: "1px solid var(--ink)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 9,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {a.n.charAt(0)}
+                        </div>
+                        <span style={{ color: "var(--ink-2)" }}>{a.n}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 10, color: "var(--ink-4)" }}>{a.t}</span>
+                        <span className="mono" style={{ fontWeight: 600 }}>
+                          {a.s}/30
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {[
+                  "Share a 6-digit class code",
+                  "Upload your own stimulus images",
+                  "Review every transcript & score",
+                  "Export to CSV or gradebook",
+                ].map((t) => (
+                  <li
+                    key={t}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      fontSize: 14,
+                      color: "var(--ink-2)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: "var(--ink)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                        <path d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href="/auth/signup"
+                className="btn-ghost"
+                style={{ alignSelf: "flex-start", background: "var(--card)" }}
+              >
+                Set up your classroom →
+              </Link>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Pricing() {
+  const tiers = [
+    {
+      name: "Try it",
+      price: "0",
+      per: "forever",
+      blurb: "See if it works for you.",
+      features: ["3 practice sessions", "Full IB rubric scoring", "Basic feedback"],
+      cta: "Start free",
+      featured: false,
+    },
+    {
+      name: "Student",
+      price: "9",
+      per: "per month",
+      blurb: "The one everyone actually buys.",
+      features: [
+        "Unlimited sessions",
+        "All feedback analytics",
+        "Progress tracking",
+        "Transcript exports",
+        "Cancel anytime",
+      ],
+      cta: "Start 7-day trial",
+      featured: true,
+    },
+    {
+      name: "Classroom",
+      price: "49",
+      per: "per month",
+      blurb: "For teachers and small schools.",
+      features: [
+        "Up to 30 students",
+        "Teacher dashboard",
+        "Custom stimulus uploads",
+        "Gradebook export",
+        "Priority support",
+      ],
+      cta: "Talk to us",
+      featured: false,
+    },
+  ];
+  return (
+    <section id="pricing" style={{ padding: "120px 0", scrollMarginTop: 80, position: "relative" }}>
+      <FloatingMark
+        glyph="¡"
+        style={{ top: 80, left: 40, fontSize: 200, opacity: 0.04, transform: "rotate(-10deg)" }}
+      />
+      <div className="wrap">
+        <Reveal>
+          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 56px" }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>Pricing</div>
+            <h2 className="display" style={{ fontSize: "clamp(36px, 4.8vw, 56px)", margin: 0 }}>
+              Cheaper than <em>one</em> tutoring session.
+            </h2>
+            <p
+              style={{
+                color: "var(--ink-3)",
+                fontSize: 17,
+                marginTop: 16,
+                maxWidth: 480,
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              Pay monthly. Cancel anytime. Free forever if you only need a few practice runs.
+            </p>
           </div>
-        </div>
-      </section>
+        </Reveal>
 
-      {/* ── Final CTA ── */}
-      <section className="relative overflow-hidden py-24 lg:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-indigo-700" />
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500 rounded-full -translate-y-1/2 -translate-x-1/2 opacity-30" />
-          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-800 rounded-full translate-y-1/3 translate-x-1/4 opacity-30" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+            alignItems: "stretch",
+          }}
+          className="pricing-grid"
+        >
+          {tiers.map((t) => (
+            <Reveal key={t.name}>
+              <div
+                style={{
+                  padding: 26,
+                  borderRadius: "var(--radius-lg)",
+                  border: "1.5px solid var(--ink)",
+                  boxShadow: t.featured ? "0 6px 0 0 var(--ink)" : "var(--shadow-stamp)",
+                  background: t.featured ? "var(--ink)" : "var(--card)",
+                  color: t.featured ? "var(--paper)" : "var(--ink)",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                  position: "relative",
+                  transform: t.featured ? "translateY(-8px)" : "none",
+                }}
+              >
+                {t.featured && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -12,
+                      right: 18,
+                      padding: "4px 10px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: "var(--gold)",
+                      color: "var(--ink)",
+                      borderRadius: 999,
+                      border: "1.5px solid var(--ink)",
+                      boxShadow: "0 2px 0 0 var(--ink)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Most popular
+                  </span>
+                )}
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "var(--habla-display)",
+                      fontSize: 15,
+                      fontWeight: 600,
+                      letterSpacing: "-0.01em",
+                      color: t.featured ? "var(--gold)" : "var(--accent)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {t.name}
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>{t.blurb}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--habla-display)",
+                      fontSize: 52,
+                      fontWeight: 600,
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ${t.price}
+                  </span>
+                  <span style={{ fontSize: 13, opacity: 0.6 }}>/ {t.per}</span>
+                </div>
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    flex: 1,
+                  }}
+                >
+                  {t.features.map((f) => (
+                    <li
+                      key={f}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "18px 1fr",
+                        gap: 8,
+                        fontSize: 13.5,
+                        lineHeight: 1.5,
+                        alignItems: "start",
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke={t.featured ? "var(--gold)" : "var(--accent)"}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        style={{ marginTop: 4 }}
+                      >
+                        <path d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/auth/signup"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "13px 22px",
+                    borderRadius: 999,
+                    background: t.featured ? "var(--gold)" : "var(--ink)",
+                    color: t.featured ? "var(--ink)" : "var(--paper)",
+                    border: "1.5px solid var(--ink)",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  {t.cta} →
+                </Link>
+              </div>
+            </Reveal>
+          ))}
         </div>
+      </div>
+    </section>
+  );
+}
 
-        <div className="relative mx-auto max-w-3xl px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight">
-            Your next IO practice session is one click away
+function FAQ() {
+  const items = [
+    {
+      q: "Is the scoring actually accurate?",
+      a:
+        "Our scoring is calibrated against the IB's official markband descriptors, reviewed with practicing Spanish B teachers. Individual sessions won't perfectly match an examiner, but trend lines across 5+ sessions are reliable.",
+    },
+    {
+      q: "Does it work with HL or just SL?",
+      a:
+        "Both. The examiner adapts question depth and expected response length to your level. You set HL/SL once and it calibrates automatically.",
+    },
+    {
+      q: "Can I use my own stimulus images?",
+      a:
+        "On Classroom plans, yes — upload any image, add cultural talking points, and your students can practice with it. Student plans use our curated library of 400+ images.",
+    },
+    {
+      q: "What if I don't speak fluently yet?",
+      a:
+        "The examiner slows down, gives hints, and repeats questions on request. You can also switch to text mode if voice feels like too much at first.",
+    },
+    {
+      q: "Is my voice recorded? Stored?",
+      a:
+        "Recordings are kept for 30 days so you can re-listen, then automatically deleted. You can purge on demand. We never train on your voice.",
+    },
+    {
+      q: "How is this different from ChatGPT?",
+      a:
+        "ChatGPT is a generalist — it'll chat with you but has no idea what an IB oral actually looks like. Habla runs the exact 4-phase format, scores on the actual rubric, and tracks you against IB criteria over time.",
+    },
+  ];
+  const [open, setOpen] = useState<number>(0);
+  return (
+    <section
+      style={{
+        padding: "120px 0",
+        background: "var(--paper-2)",
+        borderTop: "1px solid var(--line)",
+        borderBottom: "1px solid var(--line)",
+      }}
+    >
+      <div
+        className="wrap"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0,1fr) minmax(0, 1.4fr)",
+          gap: 80,
+        }}
+      >
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>FAQ</div>
+          <h2 className="display" style={{ fontSize: "clamp(36px, 4.2vw, 48px)", margin: 0 }}>
+            Yes, that&apos;s a <em>real</em> question students ask.
           </h2>
-          <p className="mt-6 text-lg text-indigo-100 max-w-xl mx-auto">
-            Stop stressing about your Individual Oral. Start practicing with an AI examiner that prepares you for the real thing.
+          <p style={{ color: "var(--ink-3)", fontSize: 16, marginTop: 18 }}>
+            Everything we get asked on our first call. If you have something we haven&apos;t covered,{" "}
+            <a
+              href="mailto:hello@habla.app"
+              style={{ color: "var(--indigo)", textDecoration: "underline", textUnderlineOffset: 3 }}
+            >
+              email us
+            </a>
+            .
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        </div>
+        <div>
+          {items.map((it, i) => (
+            <div key={it.q} style={{ borderTop: "1px solid var(--line)" }}>
+              <button
+                onClick={() => setOpen(open === i ? -1 : i)}
+                style={{
+                  width: "100%",
+                  padding: "22px 0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 20,
+                  textAlign: "left",
+                  border: "none",
+                  background: "none",
+                  color: "inherit",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--habla-serif)",
+                    fontSize: 20,
+                    fontWeight: 500,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {it.q}
+                </span>
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    background: open === i ? "var(--ink)" : "transparent",
+                    color: open === i ? "var(--paper)" : "var(--ink)",
+                    border: "1.5px solid var(--ink)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "background 0.2s",
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    style={{
+                      transform: open === i ? "rotate(45deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </button>
+              <div
+                style={{
+                  maxHeight: open === i ? 240 : 0,
+                  overflow: "hidden",
+                  transition: "max-height 0.35s ease",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    paddingBottom: 22,
+                    fontSize: 15.5,
+                    color: "var(--ink-2)",
+                    lineHeight: 1.6,
+                    maxWidth: 640,
+                  }}
+                >
+                  {it.a}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div style={{ borderTop: "1px solid var(--line)" }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCTA() {
+  return (
+    <section style={{ padding: "140px 0", position: "relative", overflow: "hidden" }}>
+      <FloatingMark glyph="¿" style={{ top: 20, left: "8%", fontSize: 280, opacity: 0.06 }} />
+      <FloatingMark
+        glyph="!"
+        style={{ bottom: 20, right: "10%", fontSize: 240, opacity: 0.06, transform: "rotate(8deg)" }}
+      />
+      <div className="wrap" style={{ position: "relative", textAlign: "center" }}>
+        <Reveal>
+          <h2
+            className="display"
+            style={{
+              fontSize: "clamp(44px, 6.2vw, 84px)",
+              margin: 0,
+              maxWidth: 900,
+              marginInline: "auto",
+            }}
+          >
+            Your oral is in <em style={{ color: "var(--indigo)" }}>six weeks</em>.<br />
+            Let&apos;s make you <span className="underline-wavy">ready</span>.
+          </h2>
+          <p
+            style={{
+              fontSize: 18,
+              color: "var(--ink-3)",
+              marginTop: 22,
+              maxWidth: 540,
+              marginInline: "auto",
+            }}
+          >
+            First three practice sessions are free. No card. No catch. Stop spiraling, start hablando.
+          </p>
+          <div
+            style={{
+              marginTop: 36,
+              display: "flex",
+              gap: 12,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <Link
               href="/auth/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-indigo-600 shadow-lg hover:bg-indigo-50 transition-all active:scale-[0.98]"
+              className="btn-primary"
+              style={{ padding: "16px 28px 17px", fontSize: 16 }}
             >
-              Start Practicing
-              <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              Start free — take 2 min
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M5 12h14m-6-6 6 6-6 6" />
               </svg>
             </Link>
-            <Link
-              href="/auth/login"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 px-8 py-3.5 text-sm font-semibold text-white hover:bg-white/10 transition-all"
-            >
-              Log In
-            </Link>
+            <a href="#pricing" className="btn-ghost">
+              See pricing
+            </a>
           </div>
-          <p className="mt-6 text-sm text-indigo-200">
-            Free for students and teachers. No credit card required.
-          </p>
-        </div>
-      </section>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-gray-100 bg-white py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div>
-              <Image src="/logo.png" alt="Habla" width={80} height={26} />
-              <p className="mt-3 text-sm text-gray-500">AI-powered IB Spanish speaking practice</p>
-              <p className="mt-2 text-xs text-gray-400">&copy; 2026 Habla. All rights reserved.</p>
+function LandingFooter() {
+  const cols = [
+    { t: "Product", l: ["How it works", "Features", "Pricing", "For teachers", "Changelog"] },
+    { t: "IB Resources", l: ["Rubric explainer", "Sample orals", "Theme guide", "Exam timing tips", "Blog"] },
+    { t: "Company", l: ["About", "Careers", "Press", "Contact", "Affiliates"] },
+    { t: "Legal", l: ["Privacy", "Terms", "Data & voice", "Accessibility"] },
+  ];
+  return (
+    <footer
+      style={{
+        background: "var(--ink)",
+        color: "var(--paper)",
+        padding: "80px 0 32px",
+        position: "relative",
+      }}
+    >
+      <div className="wrap">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.4fr) repeat(4, minmax(0, 1fr))",
+            gap: 40,
+            marginBottom: 60,
+          }}
+          className="footer-grid"
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <svg width="32" height="32" viewBox="0 0 40 40">
+                <path
+                  d="M4 14 C4 8, 8 4, 14 4 L28 4 C34 4, 38 8, 38 14 L38 24 C38 30, 34 34, 28 34 L18 34 L10 38 L12 32 C7 31, 4 28, 4 24 Z"
+                  fill="var(--gold)"
+                />
+                <text
+                  x="21"
+                  y="26"
+                  textAnchor="middle"
+                  fontFamily="Spectral, serif"
+                  fontStyle="italic"
+                  fontWeight="600"
+                  fontSize="20"
+                  fill="var(--ink)"
+                >
+                  h
+                </text>
+              </svg>
+              <span style={{ fontFamily: "var(--habla-serif)", fontSize: 24, fontWeight: 600 }}>
+                Habla<span style={{ color: "var(--gold)" }}>.</span>
+              </span>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Product</h4>
-              <ul className="space-y-2">
-                <li><a href="#how-it-works" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">How It Works</a></li>
-                <li><a href="#features" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Features</a></li>
-                <li><a href="#teachers" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">For Teachers</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Terms of Service</Link></li>
-                <li><a href="mailto:support@habla.app" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Contact</a></li>
-              </ul>
+            <p
+              style={{
+                fontSize: 14,
+                color: "oklch(0.75 0.02 275)",
+                marginTop: 14,
+                maxWidth: 280,
+                lineHeight: 1.5,
+              }}
+            >
+              Confidence for the IB Spanish oral. No more exam-day panic.
+            </p>
+            <div style={{ marginTop: 20, display: "flex", gap: 8 }}>
+              {["Twitter", "Instagram", "TikTok"].map((s) => (
+                <a
+                  key={s}
+                  href="#"
+                  style={{
+                    padding: "6px 12px",
+                    border: "1px solid oklch(0.35 0.02 275)",
+                    borderRadius: 99,
+                    fontSize: 12,
+                    color: "oklch(0.85 0.02 275)",
+                  }}
+                >
+                  {s}
+                </a>
+              ))}
             </div>
           </div>
+          {cols.map((c) => (
+            <div key={c.t}>
+              <div className="eyebrow" style={{ color: "var(--gold)", marginBottom: 14 }}>
+                {c.t}
+              </div>
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {c.l.map((x) => (
+                  <li key={x}>
+                    <a href="#" style={{ fontSize: 13, color: "oklch(0.82 0.02 275)" }}>
+                      {x}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-      </footer>
+        <div
+          style={{
+            borderTop: "1px solid oklch(0.3 0.02 275)",
+            paddingTop: 28,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 20,
+            flexWrap: "wrap",
+          }}
+        >
+          <span className="mono" style={{ fontSize: 11, color: "oklch(0.6 0.02 275)" }}>
+            © 2026 Habla · Made for IB students · Not affiliated with the IBO
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--habla-serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "oklch(0.75 0.02 275)",
+            }}
+          >
+            Hecho con cariño en Madrid · Berlin · Buenos Aires
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Page
+   ═══════════════════════════════════════════════════════════ */
+
+export default function LandingPage() {
+  return (
+    <div className="habla-landing">
+      <Nav />
+      <main>
+        <Hero />
+        <ExamFlow />
+        <HowItWorks />
+        <Features />
+        <Testimonials />
+        <TeachersSplit />
+        <Pricing />
+        <FAQ />
+        <FinalCTA />
+      </main>
+      <LandingFooter />
     </div>
   );
 }
